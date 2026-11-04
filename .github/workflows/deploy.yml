@@ -1,0 +1,76 @@
+name: Build and deploy
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions: { contents: write, packages: write }
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: brewlite
+          POSTGRES_PASSWORD: brewlite_local
+          POSTGRES_DB: brewlite
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U brewlite -d brewlite"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run lint
+      - run: npm test -- --passWithNoTests
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+      - run: npm run db:deploy
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+      - run: npm run db:seed
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+      - run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+          JWT_SECRET: ci-secret-for-tests-at-least-32-characters
+      - run: npm run build
+  image:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
+      - uses: docker/build-push-action@v6
+        with: { context: ./apps/api, push: true, tags: ghcr.io/${{ github.repository }}/api:${{ github.sha }} }
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./apps/web
+          push: true
+          tags: ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+  deploy:
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deployment
+        env: { HOOK: '${{ secrets.RENDER_DEPLOY_HOOK }}' }
+        run: test -n "$HOOK" && curl --fail --silent --show-error -X POST "$HOOK"
+      - name: Smoke check
+        env: { WEB: '${{ vars.PRODUCTION_WEB_URL }}', API: '${{ vars.PRODUCTION_API_URL }}' }
+        run: |
+          for i in $(seq 1 30); do curl --fail --silent "$API/api/health" && curl --fail --silent "$WEB" && exit 0; sleep 10; done
+          echo 'Smoke failed; restore previous image SHA.'; exit 1
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with: { generate_release_notes: true }

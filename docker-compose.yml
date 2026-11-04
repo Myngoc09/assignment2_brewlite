@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: brewlite, POSTGRES_PASSWORD: brewlite_local, POSTGRES_DB: brewlite }
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U brewlite -d brewlite"], interval: 5s, timeout: 3s, retries: 20 }
+  migrate:
+    build: ./apps/api
+    command: sh -c "npx prisma migrate deploy && npm run db:seed"
+    environment: { DATABASE_URL: postgresql://brewlite:brewlite_local@db:5432/brewlite?schema=public }
+    depends_on: { db: { condition: service_healthy } }
+  api:
+    build: ./apps/api
+    environment: { NODE_ENV: development, DATABASE_URL: postgresql://brewlite:brewlite_local@db:5432/brewlite?schema=public, JWT_SECRET: local-only-secret-change-before-deploy-123456, WEB_ORIGIN: http://localhost:3000, API_PORT: 3001 }
+    ports: ["3001:3001"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 10s, timeout: 3s, retries: 10 }
+  web:
+    build: ./apps/web
+    environment: { API_SERVER_URL: http://api:3001 }
+    ports: ["3000:3000"]
+    depends_on: { api: { condition: service_healthy } }
+volumes:
+  pgdata:

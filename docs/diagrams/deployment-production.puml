@@ -1,0 +1,20 @@
+@startuml
+node "Customer device" { artifact "Browser / PWA" as PWA }
+cloud "Internet / HTTPS" as NET
+node "GitHub CI" { artifact "Quality gate" as CI; artifact "GHCR image : SHA" as REG }
+node "Render production" { node "Web Docker service" as WEB { artifact "Next.js standalone" as NEXT } node "API Docker service" as API { artifact "NestJS + Prisma" as NEST } database "Managed PostgreSQL
+private network + persistent disk" as DB }
+node "Developer local" { artifact "Docker Compose web/api/db" as LOCAL; artifact ".env local" as ENV }
+PWA --> WEB : HTTPS 443
+WEB --> API : HTTPS 443 / API
+API --> DB : PostgreSQL private connection
+CI --> REG : push SHA (GITHUB_TOKEN)
+REG --> WEB : deploy image
+REG --> API : deploy image
+API --> DB : migrate deploy
+API --> API : /api/health + logs
+ENV ..> LOCAL : local configuration
+note bottom of CI
+Boundaries: local / CI / production. Runtime secrets in platform secret store. DB has no public ingress.
+end note
+@enduml

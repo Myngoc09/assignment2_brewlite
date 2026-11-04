@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Role {
+  CUSTOMER
+  STAFF
+  MANAGER
+}
+enum OrderStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+  PAYMENT_FAILED
+}
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+enum PaymentMethod {
+  MOCK_WALLET
+  MOCK_CARD
+}
+enum LoyaltyType {
+  EARN
+  REDEEM
+}
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  passwordHash String
+  name String
+  role Role @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  orders Order[]
+  loyalty LoyaltyTransaction[]
+}
+model Product {
+  id String @id @default(uuid())
+  slug String @unique
+  name String
+  description String
+  category String
+  image String?
+  active Boolean @default(true)
+  inventory Int @default(100)
+  sizes ProductSize[]
+  toppings ProductTopping[]
+  orderItems OrderItem[]
+  createdAt DateTime @default(now())
+}
+model ProductSize {
+  id String @id @default(uuid())
+  name String
+  priceCents Int
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([productId, name])
+}
+model ProductTopping {
+  id String @id @default(uuid())
+  name String
+  priceCents Int
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([productId, name])
+}
+model Order {
+  id String @id @default(uuid())
+  orderNumber String @unique
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  status OrderStatus @default(PENDING_PAYMENT)
+  subtotalCents Int
+  discountCents Int @default(0)
+  totalCents Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items OrderItem[]
+  payments Payment[]
+  promotion Promotion? @relation(fields: [promotionId], references: [id])
+  promotionId String?
+  loyalty LoyaltyTransaction[]
+  @@index([userId, createdAt])
+}
+model OrderItem {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product Product @relation(fields: [productId], references: [id])
+  productName String
+  size String
+  toppings String[]
+  quantity Int
+  unitPriceCents Int
+  lineTotalCents Int
+}
+model Payment {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id])
+  method PaymentMethod
+  status PaymentStatus @default(PENDING)
+  idempotencyKey String @unique
+  providerReference String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([orderId, createdAt])
+}
+model Promotion {
+  id String @id @default(uuid())
+  code String @unique
+  discountPercent Int
+  active Boolean @default(true)
+  expiresAt DateTime?
+  orders Order[]
+}
+model LoyaltyTransaction {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  orderId String?
+  order Order? @relation(fields: [orderId], references: [id])
+  type LoyaltyType
+  points Int
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}

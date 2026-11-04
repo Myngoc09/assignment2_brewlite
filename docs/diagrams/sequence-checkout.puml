@@ -1,0 +1,37 @@
+@startuml
+autonumber
+actor Customer
+participant "Next.js UI" as UI
+participant "NestJS API" as API
+database PostgreSQL as DB
+participant "Payment Service (mock)" as Pay
+Customer -> UI: Checkout
+UI -> API: POST /orders (JWT, items)
+API -> API: Validate DTO + JWT
+API -> DB: BEGIN; read price/options/stock
+DB --> API: Catalog + inventory
+API -> DB: INSERT order/items; decrement stock
+DB --> API: COMMIT + orderId
+API --> UI: 201 PENDING_PAYMENT
+UI -> API: POST /orders/{id}/pay + Idempotency-Key
+API -> API: Verify JWT + ownership
+API -> DB: Find prior idempotency key
+alt replay
+ DB --> API: Existing payment/order
+ API --> UI: Return prior result (no duplicate)
+else first attempt
+ API -> Pay: Charge mock method
+ alt success
+  Pay --> API: approved
+  API -> DB: Transaction: SUCCEEDED + CONFIRMED + loyalty
+  DB --> API: committed
+  API --> UI: confirmed + order number
+ else failure
+  Pay --> API: declined
+  API -> DB: FAILED + PAYMENT_FAILED
+  DB --> API: committed
+  API --> UI: failure + retry guidance
+ end
+end
+UI --> Customer: Show final state
+@enduml

@@ -1,0 +1,15 @@
+CREATE TYPE "Role" AS ENUM ('CUSTOMER','STAFF','MANAGER');
+CREATE TYPE "OrderStatus" AS ENUM ('PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','CANCELLED','PAYMENT_FAILED');
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING','SUCCEEDED','FAILED','REFUNDED');
+CREATE TYPE "PaymentMethod" AS ENUM ('MOCK_WALLET','MOCK_CARD');
+CREATE TYPE "LoyaltyType" AS ENUM ('EARN','REDEEM');
+CREATE TABLE "User"("id" TEXT PRIMARY KEY,"email" TEXT NOT NULL UNIQUE,"passwordHash" TEXT NOT NULL,"name" TEXT NOT NULL,"role" "Role" NOT NULL DEFAULT 'CUSTOMER',"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Product"("id" TEXT PRIMARY KEY,"slug" TEXT NOT NULL UNIQUE,"name" TEXT NOT NULL,"description" TEXT NOT NULL,"category" TEXT NOT NULL,"image" TEXT,"active" BOOLEAN NOT NULL DEFAULT TRUE,"inventory" INTEGER NOT NULL DEFAULT 100,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "ProductSize"("id" TEXT PRIMARY KEY,"name" TEXT NOT NULL,"priceCents" INTEGER NOT NULL,"productId" TEXT NOT NULL REFERENCES "Product"("id") ON DELETE CASCADE,UNIQUE("productId","name"));
+CREATE TABLE "ProductTopping"("id" TEXT PRIMARY KEY,"name" TEXT NOT NULL,"priceCents" INTEGER NOT NULL,"productId" TEXT NOT NULL REFERENCES "Product"("id") ON DELETE CASCADE,UNIQUE("productId","name"));
+CREATE TABLE "Promotion"("id" TEXT PRIMARY KEY,"code" TEXT NOT NULL UNIQUE,"discountPercent" INTEGER NOT NULL,"active" BOOLEAN NOT NULL DEFAULT TRUE,"expiresAt" TIMESTAMP(3));
+CREATE TABLE "Order"("id" TEXT PRIMARY KEY,"orderNumber" TEXT NOT NULL UNIQUE,"userId" TEXT NOT NULL REFERENCES "User"("id"),"status" "OrderStatus" NOT NULL DEFAULT 'PENDING_PAYMENT',"subtotalCents" INTEGER NOT NULL,"discountCents" INTEGER NOT NULL DEFAULT 0,"totalCents" INTEGER NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,"promotionId" TEXT REFERENCES "Promotion"("id"));
+CREATE TABLE "OrderItem"("id" TEXT PRIMARY KEY,"orderId" TEXT NOT NULL REFERENCES "Order"("id") ON DELETE CASCADE,"productId" TEXT NOT NULL REFERENCES "Product"("id"),"productName" TEXT NOT NULL,"size" TEXT NOT NULL,"toppings" TEXT[] NOT NULL,"quantity" INTEGER NOT NULL,"unitPriceCents" INTEGER NOT NULL,"lineTotalCents" INTEGER NOT NULL);
+CREATE TABLE "Payment"("id" TEXT PRIMARY KEY,"orderId" TEXT NOT NULL REFERENCES "Order"("id"),"method" "PaymentMethod" NOT NULL,"status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',"idempotencyKey" TEXT NOT NULL UNIQUE,"providerReference" TEXT,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE TABLE "LoyaltyTransaction"("id" TEXT PRIMARY KEY,"userId" TEXT NOT NULL REFERENCES "User"("id"),"orderId" TEXT REFERENCES "Order"("id"),"type" "LoyaltyType" NOT NULL,"points" INTEGER NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "Order_userId_createdAt_idx" ON "Order"("userId","createdAt"); CREATE INDEX "LoyaltyTransaction_userId_createdAt_idx" ON "LoyaltyTransaction"("userId","createdAt"); CREATE INDEX "Payment_orderId_createdAt_idx" ON "Payment"("orderId","createdAt");

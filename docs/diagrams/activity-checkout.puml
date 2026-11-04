@@ -1,0 +1,35 @@
+@startuml
+|Khách hàng|
+start
+:Xem menu;
+:Chọn món, size, topping;
+|Next.js UI|
+if (Đăng nhập?) then (chưa)
+:Yêu cầu đăng nhập;
+|Khách hàng|
+:Đăng nhập;
+|Next.js UI|
+endif
+|NestJS API|
+:Validate JWT, dữ liệu, tồn;
+if (Hợp lệ và còn hàng?) then (có)
+:Ghi order và trừ tồn
+trong transaction;
+if (Thanh toán thành công?) then (có)
+:Cập nhật CONFIRMED;
+|Khách hàng|
+:Hiện mã đơn;
+else (không)
+:Cập nhật PAYMENT_FAILED;
+|Khách hàng|
+:Hiện lỗi / thử lại;
+endif
+else (không)
+if (Hết hàng?) then (có)
+:Thông báo hết hàng;
+else (không)
+:Thông báo dữ liệu lỗi;
+endif
+endif
+stop
+@enduml

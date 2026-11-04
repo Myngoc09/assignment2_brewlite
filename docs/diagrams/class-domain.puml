@@ -1,0 +1,26 @@
+@startuml
+skinparam classAttributeIconSize 0
+class User { +id: UUID +email: string +name: string +passwordHash: string +role: Role }
+class Product { +id: UUID +slug: string +name: string +description: string +category: string +inventory: int +active: bool }
+class ProductSize { +name: string +priceCents: int }
+class ProductTopping { +name: string +priceCents: int }
+class Order { +id: UUID +orderNumber: string +subtotalCents: int +discountCents: int +totalCents: int +status: OrderStatus }
+class OrderItem { +productName: string +size: string +toppings: string[] +quantity: int +unitPriceCents: int +lineTotalCents: int }
+class Payment { +method: PaymentMethod +status: PaymentStatus +idempotencyKey: string }
+class Promotion { +code: string +discountPercent: int +active: bool +expiresAt: DateTime }
+class LoyaltyTransaction { +type: LoyaltyType +points: int +createdAt: DateTime }
+enum Role { CUSTOMER; STAFF; MANAGER }
+enum OrderStatus { PENDING_PAYMENT; CONFIRMED; PREPARING; READY; COMPLETED; CANCELLED; PAYMENT_FAILED }
+enum PaymentStatus { PENDING; SUCCEEDED; FAILED; REFUNDED }
+enum PaymentMethod { MOCK_WALLET; MOCK_CARD }
+enum LoyaltyType { EARN; REDEEM }
+User "1" -- "0..*" Order
+Order "1" *-- "1..*" OrderItem
+Product "1" -- "0..*" OrderItem
+Product "1" *-- "1..*" ProductSize
+Product "1" *-- "0..*" ProductTopping
+Order "1" -- "0..1" Payment
+Promotion "0..1" -- "0..*" Order
+User "1" -- "0..*" LoyaltyTransaction
+Order "0..1" -- "0..*" LoyaltyTransaction
+@enduml

@@ -1,0 +1,39 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  quality:
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: brewlite
+          POSTGRES_PASSWORD: brewlite_local
+          POSTGRES_DB: brewlite
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U brewlite -d brewlite"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run lint
+      - run: npm test -- --passWithNoTests
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+      - run: npm run db:deploy
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+      - run: npm run db:seed
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+      - run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+          JWT_SECRET: ci-secret-for-tests-at-least-32-characters
+      - run: npm run build
