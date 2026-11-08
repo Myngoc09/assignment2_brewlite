@@ -2,10 +2,12 @@ services:
   - type: web
     name: brewlite-api
     runtime: docker
+    plan: starter
+    autoDeployTrigger: 'off'
     rootDir: apps/api
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
-    preDeployCommand: npx prisma migrate deploy
+    preDeployCommand: npx prisma migrate deploy && npm run db:seed -- --catalog-only
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,16 +15,20 @@ services:
         fromDatabase: { name: brewlite-db, property: connectionString }
       - key: JWT_SECRET
         generateValue: true
-      - key: API_PORT
-        value: 3001
+      - key: PORT
+        value: '3001'
       - key: WEB_ORIGIN
         sync: false
   - type: web
     name: brewlite-web
     runtime: docker
+    autoDeployTrigger: 'off'
     rootDir: apps/web
     dockerfilePath: ./Dockerfile
+    healthCheckPath: /
     envVars:
+      - key: PORT
+        value: '3000'
       - key: API_SERVER_URL
         sync: false
 databases:
@@ -30,3 +36,4 @@ databases:
     databaseName: brewlite
     user: brewlite
     plan: basic-256mb
+    ipAllowList: []

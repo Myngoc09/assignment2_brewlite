@@ -1,120 +1,111 @@
-@startuml BrewLite-Class-Diagram
+@startuml
 skinparam classAttributeIconSize 0
-skinparam linetype ortho
-hide empty methods
 
 class User {
-  +id: UUID
-  +fullName: string
-  +email: string
-  +phone: string
-  +passwordHash: string
-  +role: UserRole
-  +createdAt: datetime
+  id: UUID
+  email: String
+  name: String
+  role: Role
 }
 class Product {
-  +id: UUID
-  +name: string
-  +description: string
-  +price: decimal
-  +stockQuantity: int
-  +isAvailable: boolean
+  id: UUID
+  slug: String
+  name: String
+  active: Boolean
+  inventory: Int
+}
+class ProductSize {
+  name: String
+  priceCents: Int
+}
+class ProductTopping {
+  name: String
+  priceCents: Int
 }
 class Order {
-  +id: UUID
-  +orderCode: string
-  +status: OrderStatus
-  +subtotal: decimal
-  +discountAmount: decimal
-  +totalAmount: decimal
-  +deliveryAddress: string
-  +createdAt: datetime
-  +updatedAt: datetime
+  id: UUID
+  orderNumber: String
+  status: OrderStatus
+  subtotalCents: Int
+  discountCents: Int
+  totalCents: Int
+  createdAt: DateTime
 }
 class OrderItem {
-  +id: UUID
-  +quantity: int
-  +unitPrice: decimal
-  +lineTotal: decimal
+  productName: String
+  size: String
+  toppings: String[]
+  quantity: Int
+  unitPriceCents: Int
+  lineTotalCents: Int
 }
 class Payment {
-  +id: UUID
-  +amount: decimal
-  +method: PaymentMethod
-  +status: PaymentStatus
-  +transactionRef: string
-  +paidAt: datetime
+  id: UUID
+  method: PaymentMethod
+  status: PaymentStatus
+  idempotencyKey: String
+  providerReference: String?
 }
 class Promotion {
-  +id: UUID
-  +code: string
-  +description: string
-  +discountType: DiscountType
-  +discountValue: decimal
-  +startsAt: datetime
-  +endsAt: datetime
-  +isActive: boolean
+  code: String
+  discountPercent: Int
+  active: Boolean
+  expiresAt: DateTime?
 }
 class LoyaltyTransaction {
-  +id: UUID
-  +points: int
-  +type: LoyaltyTransactionType
-  +description: string
-  +createdAt: datetime
+  type: LoyaltyType
+  points: Int
+  createdAt: DateTime
 }
-class OrderStatusHistory <<optional for order tracking>> {
-  +id: UUID
-  +status: OrderStatus
-  +note: string
-  +changedAt: datetime
+class OrderStatusHistory {
+  status: OrderStatus
+  note: String?
+  changedAt: DateTime
 }
 
+enum Role {
+  CUSTOMER
+  STAFF
+  MANAGER
+}
 enum OrderStatus {
-  PENDING
+  PENDING_PAYMENT
+  PAYMENT_FAILED
   CONFIRMED
   PREPARING
   READY
-  DELIVERING
   COMPLETED
   CANCELLED
 }
 enum PaymentStatus {
   PENDING
-  SUCCESS
+  SUCCEEDED
   FAILED
   REFUNDED
 }
 enum PaymentMethod {
-  CASH
-  CARD
-  E_WALLET
+  MOCK_WALLET
+  MOCK_CARD
 }
-enum DiscountType {
-  PERCENTAGE
-  FIXED_AMOUNT
-}
-enum UserRole {
-  CUSTOMER
-  STAFF
-  MANAGER
-}
-enum LoyaltyTransactionType {
+enum LoyaltyType {
   EARN
   REDEEM
-  ADJUST
 }
 
 User "1" -- "0..*" Order : places
-Order "1" *-- "1..*" OrderItem : contains
-Product "1" -- "0..*" OrderItem : ordered as
-Order "1" -- "0..1" Payment : paid by
-Promotion "0..1" -- "0..*" Order : applied to
-User "1" -- "0..*" LoyaltyTransaction : owns
-Order "1" *-- "0..*" OrderStatusHistory : status timeline
+User "1" -- "0..*" LoyaltyTransaction : earns
 User "0..1" -- "0..*" OrderStatusHistory : changes
+Product "1" *-- "0..*" ProductSize : offers
+Product "1" *-- "0..*" ProductTopping : offers
+Product "1" -- "0..*" OrderItem : ordered as
+Order "1" *-- "1..*" OrderItem : contains
+Order "1" -- "0..*" Payment : attempts
+Order "1" *-- "0..*" OrderStatusHistory : tracks
+Order "0..1" -- "0..*" LoyaltyTransaction : awards
+Promotion "0..1" -- "0..*" Order : applies to
 
-note bottom of OrderStatusHistory
-  Optional extension for storing each status update
-  displayed in the order tracking history.
+note bottom of Payment
+  Unique key per order.
+  At most one successful mock payment per order.
 end note
 @enduml

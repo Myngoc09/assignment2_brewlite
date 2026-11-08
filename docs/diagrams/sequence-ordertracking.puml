@@ -1,4 +1,4 @@
-@startuml BrewLite-Sequence-OrderTracking
+@startuml
 autonumber
 actor Customer
 participant "UI" as UI
@@ -8,11 +8,11 @@ activate Customer
 Customer -> UI: Mở Lịch sử đơn hàng
 deactivate Customer
 activate UI
-UI -> API: GET /orders/me + Bearer JWT
+UI -> API: GET /api/orders/mine + Bearer JWT
 deactivate UI
 activate API
 API -> API: Xác thực JWT, lấy customerId
-API -> DB: SELECT orders WHERE customer_id = customerId
+API -> DB: SELECT orders WHERE userId = customerId
 activate DB
 DB --> API: Danh sách đơn + trạng thái mới nhất
 deactivate DB
@@ -25,20 +25,20 @@ deactivate UI
 Customer -> UI: Chọn orderId để xem tracking
 deactivate Customer
 activate UI
-UI -> API: GET /orders/{id}/tracking + Bearer JWT
+UI -> API: GET /api/orders/{id} + Bearer JWT
 deactivate UI
 activate API
 API -> API: Xác thực JWT và quyền sở hữu
 API -> DB: Đọc Order và lịch sử trạng thái
 activate DB
-DB --> API: Trạng thái, thời điểm, mã vận đơn (nếu có)
+DB --> API: Trạng thái, thời điểm
 deactivate DB
 activate UI
 API --> UI: 200 OK: chi tiết tracking
 deactivate UI
 deactivate API
 activate Customer
-UI --> Customer: Hiển thị tiến trình giao hàng
+UI --> Customer: Hiển thị tiến trình xử lý đơn
 deactivate Customer
 alt JWT không hợp lệ
   API --> UI: 401 Unauthorized

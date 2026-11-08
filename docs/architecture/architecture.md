@@ -14,7 +14,7 @@ flowchart LR
  A --> DB[(PostgreSQL / Prisma)]
  A --> P[Mock payment]
  CI[GitHub Actions] --> R[GHCR SHA images]
- R --> H[Render services]
+ CI -->|Render API, tested Git SHA| H[Render services]
  H --> DB
 ```
 

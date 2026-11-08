@@ -2,9 +2,9 @@
 |Khách hàng|
 start
 :Xem menu;
-:Chọn món, size, topping;
+:Chọn món, size, topping và số lượng;
 |Next.js UI|
-if (Đăng nhập?) then (chưa)
+if (Chưa đăng nhập?) then (có)
 :Yêu cầu đăng nhập;
 |Khách hàng|
 :Đăng nhập;

@@ -1,5 +1,20 @@
 # 1.3 UC-04 Đặt và thanh toán đơn hàng
 
+```mermaid
+flowchart LR
+  Customer[Khách hàng] --> Checkout
+  subgraph BrewLite
+    Checkout((Đặt và thanh toán đơn))
+    Auth((Xác thực))
+    Order((Kiểm tra giỏ và tạo đơn))
+    Payment((Thanh toán mô phỏng))
+    Checkout -. include .-> Auth
+    Checkout -. include .-> Order
+    Checkout -. include .-> Payment
+  end
+  Payment --- Simulator[Payment simulator]
+```
+
 - **Actor chính:** khách đã đăng nhập. **Actor phụ:** API/DB, payment simulator.
 - **Mục tiêu:** đặt các món hợp lệ và nhận kết quả thanh toán.
 - **Trigger:** khách bấm Đặt hàng.

@@ -6,29 +6,29 @@ participant "NestJS API" as API
 database PostgreSQL as DB
 participant "Payment Service (mock)" as Pay
 Customer -> UI: Checkout
-UI -> API: POST /orders (JWT, items)
+UI -> API: POST /api/orders (JWT, items)
 API -> API: Validate DTO + JWT
 API -> DB: BEGIN; read price/options/stock
 DB --> API: Catalog + inventory
 API -> DB: INSERT order/items; decrement stock
 DB --> API: COMMIT + orderId
 API --> UI: 201 PENDING_PAYMENT
-UI -> API: POST /orders/{id}/pay + Idempotency-Key
+UI -> API: POST /api/orders/{id}/pay + Idempotency-Key
 API -> API: Verify JWT + ownership
-API -> DB: Find prior idempotency key
+API -> DB: Find prior payment by order and key
 alt replay
  DB --> API: Existing payment/order
  API --> UI: Return prior result (no duplicate)
 else first attempt
- API -> Pay: Charge mock method
+ API -> Pay: Simulate mock method
  alt success
   Pay --> API: approved
-  API -> DB: Transaction: SUCCEEDED + CONFIRMED + loyalty
+  API -> DB: Transaction: claim payable order and write\nSUCCEEDED + CONFIRMED + timeline + loyalty
   DB --> API: committed
   API --> UI: confirmed + order number
  else failure
   Pay --> API: declined
-  API -> DB: FAILED + PAYMENT_FAILED
+  API -> DB: Transaction: claim payable order and write\nFAILED + PAYMENT_FAILED + timeline
   DB --> API: committed
   API --> UI: failure + retry guidance
  end

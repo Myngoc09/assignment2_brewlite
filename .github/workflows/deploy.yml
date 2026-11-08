@@ -11,12 +11,16 @@ jobs:
       - name: Validate production configuration
         if: github.ref == 'refs/heads/main'
         env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
+          RENDER_WEB_SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
           WEB: ${{ vars.PRODUCTION_WEB_URL }}
           API: ${{ vars.PRODUCTION_API_URL }}
         run: |
           missing=()
-          [[ -n "$HOOK" ]] || missing+=(RENDER_DEPLOY_HOOK)
+          [[ -n "$RENDER_API_KEY" ]] || missing+=(RENDER_API_KEY)
+          [[ -n "$RENDER_API_SERVICE_ID" ]] || missing+=(RENDER_API_SERVICE_ID)
+          [[ -n "$RENDER_WEB_SERVICE_ID" ]] || missing+=(RENDER_WEB_SERVICE_ID)
           [[ -n "$WEB" ]] || missing+=(PRODUCTION_WEB_URL)
           [[ -n "$API" ]] || missing+=(PRODUCTION_API_URL)
           if (( ${#missing[@]} )); then
@@ -43,9 +47,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm run lint
-      - run: npm test -- --passWithNoTests
+      - run: npm test
         env:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
       - run: npm run db:deploy
@@ -55,6 +59,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
       - run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+          JWT_SECRET: ci-secret-for-tests-at-least-32-characters
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
         env:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
           JWT_SECRET: ci-secret-for-tests-at-least-32-characters
@@ -87,17 +96,22 @@ jobs:
     needs: image
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      WEB: ${{ vars.PRODUCTION_WEB_URL }}
-      API: ${{ vars.PRODUCTION_API_URL }}
+    timeout-minutes: 30
+    concurrency:
+      group: brewlite-production
+      cancel-in-progress: false
     steps:
-      - name: Trigger Render deployment
-        env: { HOOK: '${{ secrets.RENDER_DEPLOY_HOOK }}' }
-        run: curl --fail --silent --show-error -X POST "$HOOK"
-      - name: Smoke check
-        run: |
-          for i in $(seq 1 30); do curl --fail --silent "$API/api/health" && curl --fail --silent "$WEB" && exit 0; sleep 10; done
-          echo 'Smoke failed; restore previous image SHA.'; exit 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Deploy the tested commit and verify production
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
+          RENDER_WEB_SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}
+          WEB: ${{ vars.PRODUCTION_WEB_URL }}
+          API: ${{ vars.PRODUCTION_API_URL }}
+        run: node .github/scripts/deploy-render.mjs
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: image

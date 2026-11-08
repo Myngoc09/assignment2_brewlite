@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {api} from '@/lib/api';
 type S={id:string;
 name:string;
@@ -20,17 +20,54 @@ product:P;
 size:S;
 toppings:T[];
 quantity:number};
+type PaymentMethod = 'MOCK_WALLET' | 'MOCK_CARD';
+type Order = {
+  id: string;
+  orderNumber: string;
+  status: string;
+  createdAt: string;
+  totalCents: number;
+  items: { id: string }[];
+  statusHistory: { id: string; status: string; changedAt: string }[];
+};
+type PaymentResult = { payment: { status: 'SUCCEEDED' | 'FAILED' }; order: Order };
+type PaymentAttempt = { id: string; method: PaymentMethod; key: string; simulate: 'success' | 'fail' };
 const money=(n:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(n);
-export default function Home(){const[products,setProducts]=useState<P[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[cart,setCart]=useState<L[]>([]),[selection,setSelection]=useState<P|null>(null),[size,setSize]=useState<S|null>(null),[tops,setTops]=useState<T[]>([]),[category,setCategory]=useState('Tất cả'),[search,setSearch]=useState(''),[cartOpen,setCartOpen]=useState(false),[auth,setAuth]=useState<'login'|'register'|null>(null),[user,setUser]=useState<any>(null),[orders,setOrders]=useState<any[]>([]),[notice,setNotice]=useState(''),[pendingPayment,setPendingPayment]=useState<any>(null),[simulateFail,setSimulateFail]=useState(false),[paymentMethod,setPaymentMethod]=useState<'MOCK_WALLET'|'MOCK_CARD'>('MOCK_WALLET');
-useEffect(()=>{api<P[]>('/products').then(setProducts).catch(e=>setError(e.message)).finally(()=>setLoading(false));
+export default function Home(){const[products,setProducts]=useState<P[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[cart,setCart]=useState<L[]>([]),[selection,setSelection]=useState<P|null>(null),[size,setSize]=useState<S|null>(null),[tops,setTops]=useState<T[]>([]),[category,setCategory]=useState('Tất cả'),[search,setSearch]=useState(''),[cartOpen,setCartOpen]=useState(false),[auth,setAuth]=useState<'login'|'register'|null>(null),[user,setUser]=useState<any>(null),[orders,setOrders]=useState<Order[]>([]),[notice,setNotice]=useState(''),[simulateFail,setSimulateFail]=useState(false),[paymentMethod,setPaymentMethod]=useState<'MOCK_WALLET'|'MOCK_CARD'>('MOCK_WALLET');
+const [ordersOpen, setOrdersOpen] = useState(false);
+const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
+const [paying, setPaying] = useState(false);
+const paymentLock = useRef(false);
+const paymentAttempts = useRef(new Map<string, PaymentAttempt>());
+const [promotionCode, setPromotionCode] = useState('');
+function loadMenu() {
+  setError('');
+  setLoading(true);
+  return api<P[]>('/products').then(setProducts).catch(e=>setError(e.message)).finally(()=>setLoading(false));
+}
+useEffect(()=>{void loadMenu();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 const t=localStorage.getItem('token'),u=localStorage.getItem('user');
 if(t&&u)setUser(JSON.parse(u))},[]);
 const categories=['Tất cả',...Array.from(new Set(products.map(x=>x.category)))],visible=useMemo(()=>products.filter(x=>(category==='Tất cả'||x.category===category)&&x.name.toLowerCase().includes(search.toLowerCase())),[products,category,search]),total=cart.reduce((n,x)=>n+(x.size.priceCents+x.toppings.reduce((a,t)=>a+t.priceCents,0))*x.quantity,0);
-function open(p:P){setSelection(p);
-setSize(p.sizes[0]||null);
-setTops([])}
+async function open(p: P) {
+  try {
+    const product = await api<P>(`/products/${p.id}`);
+    setSelection(product);
+    setSize(product.sizes[0] ?? null);
+    setTops([]);
+  } catch (e: any) {
+    toast(e.message);
+  }
+}
+function cartQuantity(productId: string) {
+  return cart.reduce((quantity, line) => line.product.id === productId ? quantity + line.quantity : quantity, 0);
+}
 function add(){if(!selection||!size)return;
+if (cartQuantity(selection.id) >= selection.inventory) {
+  toast('Số lượng trong giỏ đã bằng số lượng còn lại.');
+  return;
+}
 const key=[selection.id,size.id,...tops.map(x=>x.id).sort()].join(':');
 setCart(c=>c.some(x=>x.key===key)?c.map(x=>x.key===key?{...x,quantity:x.quantity+1}:x):[...c,{key,product:selection,size,toppings:tops,quantity:1}]);
 setSelection(null);
@@ -45,21 +82,88 @@ localStorage.setItem('user',JSON.stringify(d.user));
 setUser(d.user);
 setAuth(null);
 toast('Xin chào '+d.user.name)}catch(e:any){toast(e.message)}}
-async function checkout(){if(!user){setCartOpen(false);
-setAuth('login');
-return}try{const h={Authorization:`Bearer ${localStorage.getItem('token')}`};
-const o:any=await api('/orders',{method:'POST',headers:h,body:JSON.stringify({items:cart.map(x=>({productId:x.product.id,size:x.size.name,toppings:x.toppings.map(t=>t.name),quantity:x.quantity}))})});
-const r:any=await api(`/orders/${o.id}/pay`,{method:'POST',headers:{...h,'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({method:paymentMethod,simulate:simulateFail?'fail':'success'})});
-if(r.payment.status==='SUCCEEDED'){toast(`Thanh toán thành công · ${r.order.orderNumber}`);
-setCart([])}else{toast('Thanh toán thất bại. Đơn hàng được giữ để thử lại.');
-setPendingPayment({...o,paymentMethod})}setCartOpen(false);
-loadOrders()}catch(e:any){toast(e.message)}}
-async function loadOrders(){try{setOrders(await api<any[]>('/orders/mine',{headers:{Authorization:`Bearer ${localStorage.getItem('token')}`}}))}catch(e:any){toast(e.message)}}
-async function retryPayment(){if(!pendingPayment)return;
-try{const r:any=await api(`/orders/${pendingPayment.id}/pay`,{method:'POST',headers:{Authorization:`Bearer ${localStorage.getItem('token')}`,'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({method:pendingPayment.paymentMethod,simulate:'success'})});
-if(r.payment.status==='SUCCEEDED'){setPendingPayment(null);
-toast(`Thanh toán thành công · ${r.order.orderNumber}`);
-loadOrders()}else toast('Thanh toán thất bại, hãy thử lại.')}catch(e:any){toast(e.message)}}
+function authHeaders() {
+  return { Authorization: `Bearer ${localStorage.getItem('token')}` };
+}
+async function checkout() {
+  if (paymentLock.current || !cart.length) return;
+  if (!user) {
+    setCartOpen(false);
+    setAuth('login');
+    return;
+  }
+  paymentLock.current = true;
+  setPaying(true);
+  try {
+    const order = await api<Order>('/orders', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        items: cart.map(x => ({
+          productId: x.product.id, size: x.size.name,
+          toppings: x.toppings.map(t => t.name), quantity: x.quantity,
+        })),
+        promotionCode: promotionCode.trim() || undefined,
+      }),
+    });
+    setCart([]);
+    setCartOpen(false);
+    setPromotionCode('');
+    await payOrder({
+      id: order.id, method: paymentMethod, key: crypto.randomUUID(),
+      simulate: simulateFail ? 'fail' : 'success',
+    });
+  } catch (e: any) {
+    toast(e.message);
+  } finally {
+    paymentLock.current = false;
+    setPaying(false);
+  }
+}
+async function loadOrders() {
+  try {
+    setOrders(await api<Order[]>('/orders/mine', { headers: authHeaders() }));
+    setOrdersOpen(true);
+  } catch (e: any) {
+    toast(e.message);
+  }
+}
+async function trackOrder(id: string) {
+  try {
+    setTrackedOrder(await api<Order>(`/orders/${id}`, { headers: authHeaders() }));
+  } catch (e: any) {
+    toast(e.message);
+  }
+}
+async function payOrder(attempt: PaymentAttempt) {
+  paymentAttempts.current.set(attempt.id, attempt);
+  const result = await api<PaymentResult>(`/orders/${attempt.id}/pay`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Idempotency-Key': attempt.key },
+    body: JSON.stringify({ method: attempt.method, simulate: attempt.simulate }),
+  });
+  paymentAttempts.current.delete(attempt.id);
+  toast(result.payment.status === 'SUCCEEDED'
+    ? `Thanh toán thành công · ${result.order.orderNumber}`
+    : 'Thanh toán thất bại. Bạn có thể thử lại trong lịch sử đơn.');
+  await loadOrders();
+}
+async function retryPayment(order: Order) {
+  if (paymentLock.current) return;
+  paymentLock.current = true;
+  setPaying(true);
+  try {
+    const attempt = paymentAttempts.current.get(order.id) ?? {
+      id: order.id, method: paymentMethod, key: crypto.randomUUID(), simulate: 'success' as const,
+    };
+    await payOrder(attempt);
+  } catch (e: any) {
+    toast(e.message);
+  } finally {
+    paymentLock.current = false;
+    setPaying(false);
+  }
+}
 return <main>
 <header className="topbar">
 <a className="brand" href="#home">
@@ -71,7 +175,12 @@ return <main>
 <nav>
 <a href="#menu">Thực đơn</a>
 <a href="#story">Câu chuyện</a>{user&&<button className="text-button" onClick={loadOrders}>Đơn hàng</button>}</nav>
-<div className="top-actions">{user?<button className="profile" onClick={()=>{localStorage.clear();
+<div className="top-actions">{user?<button className="profile" disabled={paying} onClick={()=>{localStorage.removeItem('token');
+localStorage.removeItem('user');
+setOrders([]);
+setOrdersOpen(false);
+paymentAttempts.current.clear();
+setTrackedOrder(null);
 setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button className="profile" onClick={()=>setAuth('login')}>Đăng nhập</button>}<button className="cart-button" onClick={()=>setCartOpen(true)}>Giỏ hàng <b>{cart.reduce((n,x)=>n+x.quantity,0)}</b>
 </button>
 </div>
@@ -126,8 +235,7 @@ setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button classNa
 </label>
 </div>
 <div className="filters">{categories.map(c=>
-<button className={category===c?'active':''} key={c} onClick={()=>setCategory(c)}>{c}</button>)}</div>{loading?<div className="state">Đang chuẩn bị menu cho bạn…</div>:error?<div className="state error">{error}<button onClick={()=>{setLoading(true);
-api<P[]>('/products').then(setProducts).catch(e=>setError(e.message)).finally(()=>setLoading(false))}}>Thử lại</button>
+<button className={category===c?'active':''} key={c} onClick={()=>setCategory(c)}>{c}</button>)}</div>{loading?<div className="state">Đang chuẩn bị menu cho bạn…</div>:error?<div className="state error">{error}<button onClick={loadMenu}>Thử lại</button>
 </div>:!visible.length?<div className="state">Chưa tìm thấy món phù hợp.</div>:<div className="product-grid">{visible.map((p,i)=>
 <article className="product-card" key={p.id} onClick={()=>open(p)}>
 <div className={`product-art art-${i%6}`}>
@@ -174,7 +282,7 @@ api<P[]>('/products').then(setProducts).catch(e=>setError(e.message)).finally(()
 {selection&&<div className="overlay" onClick={()=>setSelection(null)}>
 <div className="modal product-modal" onClick={e=>e.stopPropagation()}>
 <button className="close" onClick={()=>setSelection(null)}>×</button>
-<div className="modal-art">{['🍵','☕','🍊','🍓'][products.indexOf(selection)%4]}</div>
+<div className="modal-art">{['🍵','☕','🍊','🍓'][products.findIndex(p => p.id === selection.id)%4]}</div>
 <div className="eyebrow">
 <span/>{selection.category}</div>
 <h2>{selection.name}</h2>
@@ -186,7 +294,7 @@ api<P[]>('/products').then(setProducts).catch(e=>setError(e.message)).finally(()
 <h4>Thêm topping</h4>{selection.toppings.map(t=>
 <label className="topping" key={t.id}>
 <input type="checkbox" checked={tops.some(x=>x.id===t.id)} onChange={e=>setTops(v=>e.target.checked?[...v,t]:v.filter(x=>x.id!==t.id))}/>{t.name}<span>+{money(t.priceCents)}</span>
-</label>)}<button className="primary full" onClick={add}>Thêm vào giỏ · {money((size?.priceCents||0)+tops.reduce((a,t)=>a+t.priceCents,0))}</button>
+</label>)}<button className="primary full" disabled={!size || !selection.inventory} onClick={add}>Thêm vào giỏ · {money((size?.priceCents||0)+tops.reduce((a,t)=>a+t.priceCents,0))}</button>
 </div>
 </div>}
 {(cartOpen||auth)&&<div className="overlay" onClick={()=>{setCartOpen(false);
@@ -215,7 +323,7 @@ setAuth(null)}}>×</button>{auth?<>
 <b>{x.product.name}</b>
 <small>{x.size.name} · {x.toppings.map(t=>t.name).join(', ')||'Không topping'}</small>
 <div className="quantity">
-<button onClick={()=>setCart(c=>c.flatMap(v=>v.key!==x.key?[v]:v.quantity===1?[]:[{...v,quantity:v.quantity-1}]))}>−</button>{x.quantity}<button onClick={()=>setCart(c=>c.map(v=>v.key===x.key?{...v,quantity:v.quantity+1}:v))}>+</button>
+<button onClick={()=>setCart(c=>c.flatMap(v=>v.key!==x.key?[v]:v.quantity===1?[]:[{...v,quantity:v.quantity-1}]))}>−</button>{x.quantity}<button disabled={cartQuantity(x.product.id) >= x.product.inventory} onClick={()=>setCart(c=>c.map(v=>v.key===x.key?{...v,quantity:v.quantity+1}:v))}>+</button>
 </div>
 </div>
 <strong>{money((x.size.priceCents+x.toppings.reduce((a,t)=>a+t.priceCents,0))*x.quantity)}</strong>
@@ -223,25 +331,35 @@ setAuth(null)}}>×</button>{auth?<>
 <span>Tạm tính</span>
 <b>{money(total)}</b>
 </div>
+<label>Mã ưu đãi <input value={promotionCode} onChange={e => setPromotionCode(e.target.value)} /></label>
 <label className="payment-note">Phương thức <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as any)}>
 <option value="MOCK_WALLET">Ví mô phỏng</option>
 <option value="MOCK_CARD">Thẻ mô phỏng</option>
 </select> · <input type="checkbox" checked={simulateFail} onChange={e=>setSimulateFail(e.target.checked)}/> Mô phỏng thất bại</label>
-<button disabled={!cart.length} className="primary full" onClick={checkout}>Đặt hàng · {money(total)} →</button>
+<button disabled={!cart.length || paying} className="primary full" onClick={checkout}>Đặt hàng · {money(total)} →</button>
 </>}</div>
 </div>}
-{orders.length>0&&<div className="overlay" onClick={()=>setOrders([])}>
+{ordersOpen&&<div className="overlay" onClick={()=>setOrdersOpen(false)}>
 <div className="modal side-modal" onClick={e=>e.stopPropagation()}>
-<button className="close" onClick={()=>setOrders([])}>×</button>
+<button className="close" onClick={()=>setOrdersOpen(false)}>×</button>
 <div className="eyebrow">
 <span/> HÀNH TRÌNH ĐƠN HÀNG</div>
-<h2>Đơn gần <em>đây.</em>
-</h2>{orders.map(o=>
+<h2>Đơn gần <em>đây.</em></h2>
+{!orders.length && <p>Bạn chưa có đơn hàng.</p>}
+{orders.map(o=>
 <div className="cart-line" key={o.id}>
 <div>
 <b>{o.orderNumber}</b>
 <small>{new Date(o.createdAt).toLocaleString('vi-VN')} · {o.items.length} món</small>
 <span className="status">{o.status}</span>
+<button className="text-button" onClick={() => trackOrder(o.id)}>Theo dõi đơn</button>
+{trackedOrder?.id === o.id && <ul>
+  {trackedOrder.statusHistory.map(entry => <li key={entry.id}>
+    {entry.status} · {new Date(entry.changedAt).toLocaleString('vi-VN')}
+  </li>)}
+</ul>}
+{['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(o.status) &&
+  <button disabled={paying} onClick={() => retryPayment(o)}>Thử thanh toán lại</button>}
 </div>
 <strong>{money(o.totalCents)}</strong>
 </div>)}</div>

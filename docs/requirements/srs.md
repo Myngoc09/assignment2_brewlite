@@ -24,7 +24,7 @@ flowchart LR
 | FR-05 | Tạo đơn | Must | JWT hợp lệ; giá/tồn kiểm tra server; order/items/tồn atomic |
 | FR-06 | Mock wallet/card | Must | Success xác nhận, fail báo thất bại; cùng Idempotency-Key không charge lần hai |
 | FR-07 | Lịch sử/trạng thái | Must | Chỉ chủ đơn đọc, mới nhất trước |
-| FR-08 | Nhân viên cập nhật trạng thái | Must | Chỉ STAFF/MANAGER và trạng thái hợp lệ |
+| FR-08 | Nhân viên cập nhật trạng thái | Must | STAFF/MANAGER chuyển CONFIRMED → PREPARING → READY → COMPLETED hoặc hủy trước khi hoàn tất; ghi lịch sử trạng thái |
 | FR-09 | Mã ưu đãi | Should | Chỉ mã active/còn hạn được áp dụng đúng tỷ lệ |
 | FR-10 | Điểm loyalty | Could | Ghi earn gắn đơn khi thanh toán thành công |
 | FR-11 | Dashboard CRUD menu | Won't | Ngoài MVP, menu cung cấp bằng seed |

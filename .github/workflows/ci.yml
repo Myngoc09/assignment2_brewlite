@@ -1,8 +1,6 @@
 name: CI
 on:
   pull_request:
-  push:
-    branches: [main]
 jobs:
   quality:
     services:
@@ -20,10 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm install
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
       - run: npm run lint
-      - run: npm test -- --passWithNoTests
+      - run: npm test
         env:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
       - run: npm run db:deploy
@@ -33,6 +33,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
       - run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
+          JWT_SECRET: ci-secret-for-tests-at-least-32-characters
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
         env:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
           JWT_SECRET: ci-secret-for-tests-at-least-32-characters
