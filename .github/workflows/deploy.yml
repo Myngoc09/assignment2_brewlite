@@ -66,12 +66,25 @@ jobs:
     needs: image
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      WEB: ${{ vars.PRODUCTION_WEB_URL }}
+      API: ${{ vars.PRODUCTION_API_URL }}
     steps:
+      - name: Validate production configuration
+        env: { HOOK: '${{ secrets.RENDER_DEPLOY_HOOK }}' }
+        run: |
+          if [[ -z "$HOOK" ]]; then
+            echo '::error::Set the RENDER_DEPLOY_HOOK repository secret in Settings > Secrets and variables > Actions.'
+            exit 1
+          fi
+          if [[ -z "$WEB" || -z "$API" ]]; then
+            echo '::error::Set the PRODUCTION_WEB_URL and PRODUCTION_API_URL repository variables in Settings > Secrets and variables > Actions.'
+            exit 1
+          fi
       - name: Trigger Render deployment
         env: { HOOK: '${{ secrets.RENDER_DEPLOY_HOOK }}' }
-        run: test -n "$HOOK" && curl --fail --silent --show-error -X POST "$HOOK"
+        run: curl --fail --silent --show-error -X POST "$HOOK"
       - name: Smoke check
-        env: { WEB: '${{ vars.PRODUCTION_WEB_URL }}', API: '${{ vars.PRODUCTION_API_URL }}' }
         run: |
           for i in $(seq 1 30); do curl --fail --silent "$API/api/health" && curl --fail --silent "$WEB" && exit 0; sleep 10; done
           echo 'Smoke failed; restore previous image SHA.'; exit 1
