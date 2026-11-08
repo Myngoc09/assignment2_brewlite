@@ -1,0 +1,14 @@
+@startuml BrewLite-UseCase-LichSuTheoDoiDon
+left to right direction
+actor "Khách hàng" as Customer
+rectangle "BrewLite - Hệ thống đặt đồ uống" {
+  usecase "Xem lịch sử đơn hàng" as UC_History
+  usecase "Chọn một đơn hàng" as UC_Select
+  usecase "Xem trạng thái đơn" as UC_Status
+  usecase "Xem chi tiết đơn hàng" as UC_Detail
+UC_History <-- UC_Detail :<<extend>>
+}
+Customer --> UC_History
+Customer --> UC_Select
+Customer --> UC_Status
+@enduml
