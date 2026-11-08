@@ -216,10 +216,15 @@ async pay(
   }
 
   const findPriorPayment = () =>
-    this.db.payment.findUnique({
-      where: { idempotencyKey: key },
-      include: { order: true },
-    });
+  this.db.payment.findUnique({
+    where: {
+      orderId_idempotencyKey: {
+        orderId: id,
+        idempotencyKey: key,
+      },
+    },
+    include: { order: true },
+  });
 
   const priorPayment = await findPriorPayment();
 
