@@ -1,0 +1,53 @@
+@startuml BrewLite-Sequence-OrderTracking
+autonumber
+actor Customer
+participant "UI" as UI
+participant "API" as API
+database PostgreSQL as DB
+activate Customer
+Customer -> UI: Mở Lịch sử đơn hàng
+deactivate Customer
+activate UI
+UI -> API: GET /orders/me + Bearer JWT
+deactivate UI
+activate API
+API -> API: Xác thực JWT, lấy customerId
+API -> DB: SELECT orders WHERE customer_id = customerId
+activate DB
+DB --> API: Danh sách đơn + trạng thái mới nhất
+deactivate DB
+activate UI
+API --> UI: 200 OK: danh sách đơn
+ deactivate API
+activate Customer
+UI --> Customer: Hiển thị lịch sử đơn và trạng thái
+deactivate UI
+Customer -> UI: Chọn orderId để xem tracking
+deactivate Customer
+activate UI
+UI -> API: GET /orders/{id}/tracking + Bearer JWT
+deactivate UI
+activate API
+API -> API: Xác thực JWT và quyền sở hữu
+API -> DB: Đọc Order và lịch sử trạng thái
+activate DB
+DB --> API: Trạng thái, thời điểm, mã vận đơn (nếu có)
+deactivate DB
+activate UI
+API --> UI: 200 OK: chi tiết tracking
+deactivate UI
+deactivate API
+activate Customer
+UI --> Customer: Hiển thị tiến trình giao hàng
+deactivate Customer
+alt JWT không hợp lệ
+  API --> UI: 401 Unauthorized
+  UI --> Customer: Yêu cầu đăng nhập
+else Đơn không tìm thấy hoặc không thuộc khách hàng
+  API --> UI: 404 Not Found
+  UI --> Customer: Thông báo không tìm thấy đơn
+else Lỗi truy vấn
+  API --> UI: 5xx Server Error
+  UI --> Customer: Báo lỗi và cho phép thử lại
+end
+@enduml
