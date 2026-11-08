@@ -1,0 +1,39 @@
+@startuml BrewLite-Activity-TheoDoiDon
+|Khách hàng|
+start
+:Mở mục Đơn hàng;
+if (Đã đăng nhập?) then (Có)
+else (Không)
+  :Đăng nhập / xác thực;
+endif
+|UI|
+:Gửi GET /orders/me kèm JWT;
+|API|
+:Kiểm tra JWT và quyền truy cập;
+|PostgreSQL|
+:Đọc các đơn của customerId;
+|API|
+:Trả danh sách đơn và trạng thái mới nhất;
+|UI|
+if (Có đơn hàng?) then (Có)
+  :Hiển thị lịch sử đơn;
+  |Khách hàng|
+  :Chọn đơn cần theo dõi;
+  |UI|
+  :Gửi GET /orders/{id}/tracking kèm JWT;
+  |API|
+  :Kiểm tra đơn thuộc khách hàng;
+  |PostgreSQL|
+  :Đọc Order và lịch sử trạng thái;
+  |API|
+  :Trả trạng thái, thời điểm,
+mã vận đơn nếu có;
+  |UI|
+  :Hiển thị tiến trình giao hàng;
+  |Khách hàng|
+  :Xem trạng thái đơn;
+stop
+else (Không)
+  :Thông báo chưa có đơn hàng;
+stop
+@enduml
