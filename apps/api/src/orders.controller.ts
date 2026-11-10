@@ -65,24 +65,31 @@ class PayDto {
   simulate?: 'success' | 'fail';
 }
 
+class PaymentRequestDto extends PayDto {
+  @IsString()
+  orderId!: string;
+}
+
 const statusTransitions = {
-  PREPARING: [OrderStatus.CONFIRMED],
+  PREPARING: [OrderStatus.PAID],
   READY: [OrderStatus.PREPARING],
   COMPLETED: [OrderStatus.READY],
-  CANCELLED: [OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.READY],
+  CANCELLED: [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED, OrderStatus.PAID],
 };
+
+const unpaidStatuses: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED];
 
 class StatusDto {
   @IsIn(Object.keys(statusTransitions))
   status!: keyof typeof statusTransitions;
 }
 
-@Controller('orders')
+@Controller()
 @UseGuards(AuthGuard)
 export class OrdersController {
   constructor(private db: PrismaService) {}
 
-  @Post()
+  @Post('orders')
   async create(@Req() req: any, @Body() d: CartDto) {
     if (!d.items?.length) {
       throw new BadRequestException('Cart cannot be empty');
@@ -167,7 +174,7 @@ export class OrdersController {
           discountCents: discount,
           totalCents: subtotal - discount,
           promotionId: promotion?.id,
-          statusHistory: { create: { status: 'PENDING_PAYMENT', changedById: req.user.sub } },
+          statusHistory: { create: { status: 'PENDING', changedById: req.user.sub } },
           items: {
             create: lines.map(({ product, ...rest }) => ({
               ...rest,
@@ -182,10 +189,12 @@ export class OrdersController {
         },
       });
 
-      for (const line of lines) {
+      // Acquire stock locks in the same order across multi-product carts.
+      for (const line of [...lines].sort((a, b) => a.product.id.localeCompare(b.product.id))) {
         const result = await tx.product.updateMany({
           where: {
             id: line.product.id,
+            active: true,
             inventory: { gte: line.quantity },
           },
           data: {
@@ -204,7 +213,16 @@ export class OrdersController {
     });
   }
 
-  @Post(':id/pay')
+  @Post('payments')
+  payByOrder(
+    @Req() req: any,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() d: PaymentRequestDto,
+  ) {
+    return this.pay(req, d.orderId, key, d);
+  }
+
+  @Post('orders/:id/pay')
   async pay(
     @Req() req: any,
     @Param('id') id: string,
@@ -232,17 +250,27 @@ export class OrdersController {
     }
 
     const succeeded = d.simulate !== 'fail';
-    const status = succeeded ? 'CONFIRMED' : 'PAYMENT_FAILED';
+    const status = succeeded ? 'PAID' : 'PAYMENT_FAILED';
 
     try {
       return await this.db.$transaction(async (tx) => {
-        const changed = await tx.order.updateMany({
-          where: { id, status: { in: ['PENDING_PAYMENT', 'PAYMENT_FAILED'] } },
-          data: { status },
-        });
-        if (!changed.count) {
+        const [current] = await tx.$queryRaw<{ status: OrderStatus }[]>`
+          SELECT status::text FROM "Order" WHERE id = ${id} FOR UPDATE
+        `;
+        if (!current || !unpaidStatuses.includes(current.status)) {
           throw new ConflictException('Order is not payable');
         }
+        const attemptTime = Date.now();
+        const retry = current.status === OrderStatus.PAYMENT_FAILED;
+        if (retry) {
+          await tx.orderStatusHistory.create({
+            data: {
+              orderId: id, status: OrderStatus.PENDING, changedById: req.user.sub,
+              changedAt: new Date(attemptTime),
+            },
+          });
+        }
+        const updatedOrder = await tx.order.update({ where: { id }, data: { status } });
 
         const payment = await tx.payment.create({
           data: {
@@ -254,7 +282,10 @@ export class OrdersController {
           },
         });
         await tx.orderStatusHistory.create({
-          data: { orderId: id, status, changedById: req.user.sub },
+          data: {
+            orderId: id, status, changedById: req.user.sub,
+            changedAt: new Date(attemptTime + (retry ? 1 : 0)),
+          },
         });
         if (succeeded) {
           await tx.loyaltyTransaction.create({
@@ -267,7 +298,6 @@ export class OrdersController {
           });
         }
 
-        const updatedOrder = await tx.order.findUniqueOrThrow({ where: { id } });
         return { payment, order: updatedOrder, replayed: false };
       });
     } catch (error) {
@@ -284,7 +314,7 @@ export class OrdersController {
     }
   }
 
-  @Get('mine')
+  @Get(['orders/me', 'orders/mine'])
   mine(@Req() req: any) {
     return this.db.order.findMany({
       where: { userId: req.user.sub },
@@ -297,7 +327,16 @@ export class OrdersController {
     });
   }
 
-  @Get(':id')
+  @Get('orders/loyalty')
+  async loyalty(@Req() req: any) {
+    const { _sum } = await this.db.loyaltyTransaction.aggregate({
+      where: { userId: req.user.sub },
+      _sum: { points: true },
+    });
+    return { points: _sum.points ?? 0 };
+  }
+
+  @Get('orders/:id')
   async one(@Req() req: any, @Param('id') id: string) {
     const order = await this.db.order.findFirst({
       where: {
@@ -318,22 +357,40 @@ export class OrdersController {
     return order;
   }
 
-  @Patch(':id/status')
+  @Patch('orders/:id/status')
   async status(
     @Req() req: any,
     @Param('id') id: string,
     @Body() { status }: StatusDto,
   ) {
-    if (!['STAFF', 'MANAGER'].includes(req.user.role)) {
+    const staff = ['STAFF', 'MANAGER'].includes(req.user.role);
+    if (!staff && status !== 'CANCELLED') {
       throw new ForbiddenException('Staff role required');
     }
 
-    const order = await this.db.order.findUnique({ where: { id }, select: { id: true } });
+    const owner = staff ? {} : { userId: req.user.sub };
+    const order = await this.db.order.findFirst({ where: { id, ...owner }, select: { id: true } });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
 
     try {
+      if (status === 'CANCELLED') {
+        return await this.db.$transaction(async (tx) => {
+          const cancelled = await tx.order.update({
+            where: { id, ...owner, status: { in: staff ? statusTransitions.CANCELLED : unpaidStatuses } },
+            data: { status, statusHistory: { create: { status, changedById: req.user.sub } } },
+            include: { items: { orderBy: { productId: 'asc' } } },
+          });
+          for (const item of cancelled.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { inventory: { increment: item.quantity } },
+            });
+          }
+          return cancelled;
+        });
+      }
       return await this.db.order.update({
         where: { id, status: { in: statusTransitions[status] } },
         data: {

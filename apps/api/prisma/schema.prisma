@@ -11,8 +11,8 @@ enum Role {
   MANAGER
 }
 enum OrderStatus {
-  PENDING_PAYMENT
-  CONFIRMED
+  PENDING
+  PAID
   PREPARING
   READY
   COMPLETED
@@ -79,7 +79,7 @@ model Order {
   orderNumber String @unique
   userId String
   user User @relation(fields: [userId], references: [id])
-  status OrderStatus @default(PENDING_PAYMENT)
+  status OrderStatus @default(PENDING)
   subtotalCents Int
   discountCents Int @default(0)
   totalCents Int

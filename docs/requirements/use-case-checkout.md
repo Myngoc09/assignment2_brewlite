@@ -19,7 +19,7 @@ flowchart LR
 - **Mục tiêu:** đặt các món hợp lệ và nhận kết quả thanh toán.
 - **Trigger:** khách bấm Đặt hàng.
 - **Tiền điều kiện:** JWT hợp lệ, giỏ không rỗng.
-- **Hậu điều kiện thành công:** order/items/payment SUCCEEDED/loyalty được lưu, tồn giảm, khách thấy mã đơn CONFIRMED.
+- **Hậu điều kiện thành công:** order/items/payment SUCCEEDED/loyalty được lưu, tồn giảm, khách thấy mã đơn PAID.
 - **Hậu điều kiện thất bại:** PAYMENT_FAILED; khách được hướng dẫn thử lại.
 
 ## Luồng chính

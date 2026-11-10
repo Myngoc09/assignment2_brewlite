@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <ellipse cx="81" cy="139" rx="51" ry="9" fill="#333" opacity=".15"/>
+  <path d="M90 48 105 13" stroke="#345649" stroke-width="7" stroke-linecap="round"/>
+  <path d="M35 51h90l-13 77a10 10 0 0 1-10 8H58a10 10 0 0 1-10-8Z" fill="#d58f55"/>
+  <ellipse cx="80" cy="51" rx="45" ry="12" fill="#ffe0a7"/>
+  <path d="m46 62 10 62m59-62-10 62" stroke="#fff" opacity=".25" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="80" cy="96" r="16" fill="#faf8f2"/>
+  <text x="80" y="101" text-anchor="middle" font-family="Georgia,serif" font-size="15" fill="#17392e">BL</text>
+</svg>

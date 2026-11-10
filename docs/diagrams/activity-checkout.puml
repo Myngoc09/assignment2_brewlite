@@ -16,7 +16,7 @@ if (Hợp lệ và còn hàng?) then (có)
 :Ghi order và trừ tồn
 trong transaction;
 if (Thanh toán thành công?) then (có)
-:Cập nhật CONFIRMED;
+:Cập nhật PAID;
 |Khách hàng|
 :Hiện mã đơn;
 else (không)
