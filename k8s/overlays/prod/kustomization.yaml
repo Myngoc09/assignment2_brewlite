@@ -5,8 +5,8 @@ resources:
   - ../../base
 images:
   - name: brewlite-api
-    newName: ghcr.io/myngoc09/example_brewlite/api
-    newTag: bootstrap
+    newName: ghcr.io/myngoc09/assignment2_brewlite/api
+    newTag: 793d1a7e7114cadbd32bb793b56734ec64eb77c0
   - name: brewlite-web
-    newName: ghcr.io/myngoc09/example_brewlite/web
-    newTag: bootstrap
+    newName: ghcr.io/myngoc09/assignment2_brewlite/web
+    newTag: 793d1a7e7114cadbd32bb793b56734ec64eb77c0
