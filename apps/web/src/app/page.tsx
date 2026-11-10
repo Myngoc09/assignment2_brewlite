@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {api} from '@/lib/api';
 type S={id:string;
 name:string;
@@ -46,15 +46,32 @@ const [paying, setPaying] = useState(false);
 const paymentLock = useRef(false);
 const paymentAttempts = useRef(new Map<string, PaymentAttempt>());
 const [promotionCode, setPromotionCode] = useState('');
-function loadMenu() {
+const loadMenu = useCallback(async (signal?: AbortSignal) => {
+  try {
+    const menu = await api<P[]>('/products', { signal });
+    if (!signal?.aborted) setProducts(menu);
+  } catch (error) {
+    if (!signal?.aborted) setError((error as Error).message);
+  } finally {
+    if (!signal?.aborted) setLoading(false);
+  }
+}, []);
+function retryMenu() {
   setError('');
   setLoading(true);
-  return api<P[]>('/products').then(setProducts).catch(e=>setError(e.message)).finally(()=>setLoading(false));
+  void loadMenu();
 }
-useEffect(()=>{void loadMenu();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
-const t=localStorage.getItem('token'),u=localStorage.getItem('user');
-if(t&&u)setUser(JSON.parse(u))},[]);
+useEffect(() => {
+  const controller = new AbortController();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  queueMicrotask(() => {
+    if (controller.signal.aborted) return;
+    void loadMenu(controller.signal);
+    const storedUser = localStorage.getItem('user');
+    if (localStorage.getItem('token') && storedUser) setUser(JSON.parse(storedUser));
+  });
+  return () => controller.abort();
+}, [loadMenu]);
 const categories=['Tất cả',...Array.from(new Set(products.map(x=>x.category)))],visible=useMemo(()=>products.filter(x=>(category==='Tất cả'||x.category===category)&&x.name.toLowerCase().includes(search.toLowerCase())),[products,category,search]),total=cart.reduce((n,x)=>n+(x.size.priceCents+x.toppings.reduce((a,t)=>a+t.priceCents,0))*x.quantity,0);
 async function open(p: P) {
   try {
@@ -241,7 +258,7 @@ setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button classNa
 </label>
 </div>
 <div className="filters">{categories.map(c=>
-<button className={category===c?'active':''} key={c} onClick={()=>setCategory(c)}>{c}</button>)}</div>{loading?<div className="state">Đang chuẩn bị menu cho bạn…</div>:error?<div className="state error">{error}<button onClick={loadMenu}>Thử lại</button>
+<button className={category===c?'active':''} key={c} onClick={()=>setCategory(c)}>{c}</button>)}</div>{loading?<div className="state">Đang chuẩn bị menu cho bạn…</div>:error?<div className="state error">{error}<button onClick={retryMenu}>Thử lại</button>
 </div>:!visible.length?<div className="state">Chưa tìm thấy món phù hợp.</div>:<div className="product-grid">{visible.map((p,i)=>
 <article className="product-card" key={p.id} onClick={()=>open(p)}>
 <div className={`product-art art-${i%6}`}>

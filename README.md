@@ -20,15 +20,6 @@ PR chạy lint, unit test, API E2E, Playwright, build và smoke test Kubernetes.
 
 Xem [SRS](docs/requirements/srs.md), [context](docs/requirements/context-and-scope.md), [use case](docs/requirements/use-case-checkout.md), [diagrams](docs/diagrams/README.md), [architecture](docs/architecture/architecture.md), [deployment](docs/deployment.md), [traceability](docs/traceability-matrix.md).
 
-## Hướng dẫn chạy cloudflare
-- mở docker desktop, đợi Kubernetes khởi động, rồi chạy trong PowerShell:
-kubectl --context docker-desktop get nodes  
-kubectl --context docker-desktop -n argocd get application brewlite  
-kubectl --context docker-desktop -n brewlite get pods,pvc  
-- ở cửa số powershell 1, mở cổng 3000  
-kubectl --context docker-desktop -n brewlite port-forward svc/brewlite-web 3000:3000  
-- ở cửa số powershell 2, mở cloudeflare tunnel  
-Set-Location "$env:USERPROFILE\Downloads"
-.\cloudflared-windows-amd64.exe tunnel --protocol http2 --url http://127.0.0.1:3000 --allowed-mail "sungoc110220@gmail.com"  
-- muốn xem trạng thái đồng bộ mở giao diện Argo CD ( tên đăng nhập: admin, mật khẩu: Brewlite123)  
-kubectl --context docker-desktop -n argocd port-forward svc/argocd-server 8080:443
+## Demo HTTPS qua Cloudflare
+
+BrewLite có thể chạy trên cluster Docker Desktop và phục vụ một URL HTTPS tạm qua Cloudflare Quick Tunnel. Xem [cách tạo tunnel và kiểm tra đúng bản deploy](docs/deployment.md#demo-https-từ-docker-desktop).

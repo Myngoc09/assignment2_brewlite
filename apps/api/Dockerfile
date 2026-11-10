@@ -13,6 +13,8 @@ FROM node:20-alpine
 WORKDIR /app
 RUN apk add --no-cache openssl
 ENV NODE_ENV=production API_PORT=3001
+ARG BREWLITE_REVISION
+ENV BREWLITE_REVISION=${BREWLITE_REVISION}
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/api/package.json ./package.json
 COPY --from=build /repo/apps/api/dist ./dist
