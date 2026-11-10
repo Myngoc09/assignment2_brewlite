@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      smoke_url:
+        description: Temporary HTTPS URL for the production smoke test
+        required: false
+        type: string
+      smoke_revision:
+        description: Existing image SHA to run only the smoke test
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -13,6 +22,7 @@ defaults:
 
 jobs:
   quality:
+    if: "!inputs.smoke_revision"
     uses: ./.github/workflows/ci.yml
 
   image:
@@ -42,6 +52,7 @@ jobs:
           context: .
           file: apps/${{ matrix.app }}/Dockerfile
           platforms: linux/${{ matrix.arch }}
+          build-args: BREWLITE_REVISION=${{ github.sha }}
           push: true
           tags: ${{ steps.image.outputs.name }}:${{ github.sha }}-${{ matrix.arch }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -73,9 +84,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      promoted: ${{ steps.promote.outputs.promoted }}
     steps:
       - uses: actions/checkout@v4
       - name: Update the production image tags together
+        id: promote
         run: |
           production="$(git ls-remote --heads origin refs/heads/production)"
           if [[ -n "$production" ]]; then
@@ -101,3 +115,30 @@ jobs:
             git commit -m "Deploy BrewLite $GITHUB_SHA"
           fi
           git push origin HEAD:refs/heads/production
+          echo "promoted=true" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    needs: gitops
+    if: ${{ !cancelled() && (needs.gitops.outputs.promoted == 'true' || inputs.smoke_revision != '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PRODUCTION_WEB_URL: ${{ inputs.smoke_url || vars.PRODUCTION_WEB_URL }}
+      BREWLITE_REVISION: ${{ inputs.smoke_revision || github.sha }}
+      SMOKE_ONLY: ${{ inputs.smoke_revision != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the deployed revision over HTTPS
+        run: |
+          if [[ -z "$PRODUCTION_WEB_URL" ]]; then
+            if [[ "$SMOKE_ONLY" == true ]]; then
+              echo "::error::Provide smoke_url or set PRODUCTION_WEB_URL."
+              exit 1
+            fi
+            echo "::warning::Production HTTPS smoke test not configured. Set PRODUCTION_WEB_URL or supply smoke_url."
+            exit 0
+          fi
+          node .github/scripts/smoke-production.mjs

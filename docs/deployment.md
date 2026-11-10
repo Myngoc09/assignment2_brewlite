@@ -62,6 +62,32 @@ curl -fsS http://127.0.0.1:8080/api/products
 
 Nếu API chưa lên, xem `kubectl -n brewlite logs deploy/brewlite-api -c migrate` và kiểm tra PostgreSQL đã Ready. Với `ImagePullBackOff`, kiểm tra tên, tag image và quyền đọc GHCR. Kiểm tra lại cùng ba endpoint qua URL HTTPS sau khi mở Ingress.
 
+## Demo HTTPS từ Docker Desktop
+
+Sau khi rollout bản phát hành đã kiểm thử vào cluster `docker-desktop`, chuyển tiếp riêng Service của web. Cổng này chỉ lắng nghe trên máy cục bộ.
+
+```powershell
+kubectl --context docker-desktop -n brewlite port-forward svc/brewlite-web 8081:3000
+```
+
+Ở cửa sổ PowerShell khác, chạy Cloudflare Quick Tunnel. URL `trycloudflare.com` thay đổi khi khởi động lại tunnel. Giữ Docker Desktop và cả hai tiến trình đang chạy trong thời gian demo. [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+
+```powershell
+cloudflared tunnel --protocol http2 --url http://127.0.0.1:8081
+```
+
+Dùng cùng hostname cho trang web, `/api/health` và `/api/products`. Thử từ mạng khác trước buổi chấm. PostgreSQL và Argo CD chỉ truy cập nội bộ. Giữ mật khẩu và token ngoài Git.
+
+Với hostname cố định, đặt GitHub Actions repository variable `PRODUCTION_WEB_URL` bằng origin HTTPS. Với URL tạm, nhập URL vào `smoke_url` khi chạy CD thủ công. Bước smoke đợi cả web và API báo đúng commit SHA rồi kiểm tra trang chủ, health và danh mục. Nếu URL chưa được cấu hình, CD ghi cảnh báo và bỏ qua phần kiểm tra HTTPS.
+
+Có thể kiểm tra lại bản đang chạy mà không phát hành lần nữa. Trong **CD → Run workflow**, điền `smoke_revision` bằng commit SHA trên tag image API và web và điền `smoke_url` nếu dùng tunnel tạm. Cũng có thể chạy cùng bài kiểm tra trong PowerShell.
+
+```powershell
+$env:PRODUCTION_WEB_URL = 'https://hostname-cua-ban'
+$env:BREWLITE_REVISION = 'SHA-cua-image'
+node .github/scripts/smoke-production.mjs
+```
+
 ## Rollback
 
 Chọn một commit đã chạy ổn trên `production`. Tạo commit khôi phục overlay và các manifest của phiên bản đó trên chính nhánh `production` để Argo CD tự sync. Giữ image theo SHA trong GHCR để rollback được. Kiểm tra tương thích schema trước khi hạ phiên bản. Rollback manifest không hoàn tác migration PostgreSQL. Bản phát hành thành công tiếp theo từ `main` sẽ cập nhật lại nhánh `production`.
