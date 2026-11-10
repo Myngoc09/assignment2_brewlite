@@ -18,5 +18,5 @@
 | NFR-04 | UC-01, UC-04 | PWA/mobile | manifest, service worker, Next.js | checkout.spec, kiểm tra manifest |
 | NFR-05 | UC-04 | Sequence/Class | Prisma transaction, integer VND | app.e2e-spec, orders.service.spec |
 | NFR-06 | Delivery | Deployment/ADR | Prisma migrate/seed, Compose | khởi tạo DB trống và Compose health |
-| NFR-07 | Delivery | Deployment/ADR | GitHub Actions, Render | quality gate, SHA, production smoke |
+| NFR-07 | Delivery | Deployment/ADR | GitHub Actions, GHCR, Argo CD | quality gate, SHA, Kubernetes smoke |
 | NFR-08 | UC-04 | Mock payment ADR | PayDto, UI chọn ví/thẻ | app.e2e-spec, checkout.spec |

@@ -1,6 +1,12 @@
 name: CI
 on:
   pull_request:
+  workflow_call:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
 jobs:
   quality:
     services:
@@ -42,3 +48,41 @@ jobs:
           DATABASE_URL: postgresql://brewlite:brewlite_local@localhost:5432/brewlite?schema=public
           JWT_SECRET: ci-secret-for-tests-at-least-32-characters
       - run: npm run build
+  kubernetes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
+        with:
+          cluster_name: brewlite-ci
+      - name: Build and load application images
+        run: |
+          docker build -f apps/api/Dockerfile -t brewlite-api:ci .
+          docker build -f apps/web/Dockerfile -t brewlite-web:ci .
+          kind load docker-image --name brewlite-ci brewlite-api:ci brewlite-web:ci
+      - name: Apply the production overlay to the test cluster
+        run: |
+          kubectl create namespace brewlite
+          kubectl -n brewlite create secret generic brewlite-runtime \
+            --from-literal=POSTGRES_PASSWORD=ci-only \
+            --from-literal=DATABASE_URL='postgresql://brewlite:ci-only@brewlite-postgres:5432/brewlite?schema=public' \
+            --from-literal=JWT_SECRET=ci-only-secret-for-tests-at-least-32-characters
+          kubectl kustomize k8s/overlays/prod \
+            | sed -E 's#image: ghcr.io/.*/(api|web):[^ ]+#image: brewlite-\1:ci#' \
+            | kubectl apply -f -
+          for app in postgres api web; do
+            kubectl -n brewlite rollout status deployment/brewlite-$app --timeout=240s
+          done
+      - name: Smoke test the web and its API proxy
+        run: |
+          kubectl -n brewlite port-forward service/brewlite-web 8080:3000 &
+          trap 'kill "$!"' EXIT
+          curl --retry 15 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8080/ > /dev/null
+          curl -fsS http://127.0.0.1:8080/api/health | jq -e '.status == "ok"'
+          curl -fsS http://127.0.0.1:8080/api/products | jq -e 'type == "array" and length > 0'
+      - name: Collect cluster diagnostics
+        if: failure()
+        run: |
+          kubectl -n brewlite get pods,pvc,events
+          kubectl -n brewlite logs deployment/brewlite-api -c migrate || true

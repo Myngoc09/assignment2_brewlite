@@ -32,6 +32,12 @@ type Order = {
 };
 type PaymentResult = { payment: { status: 'SUCCEEDED' | 'FAILED' }; order: Order };
 type PaymentAttempt = { id: string; method: PaymentMethod; key: string; simulate: 'success' | 'fail' };
+
+function createPaymentKey() {
+  const random = crypto.getRandomValues(new Uint32Array(4));
+  return Array.from(random, part => part.toString(16).padStart(8, '0')).join('');
+}
+
 const money=(n:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(n);
 export default function Home(){const[products,setProducts]=useState<P[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[cart,setCart]=useState<L[]>([]),[selection,setSelection]=useState<P|null>(null),[size,setSize]=useState<S|null>(null),[tops,setTops]=useState<T[]>([]),[category,setCategory]=useState('Tất cả'),[search,setSearch]=useState(''),[cartOpen,setCartOpen]=useState(false),[auth,setAuth]=useState<'login'|'register'|null>(null),[user,setUser]=useState<any>(null),[orders,setOrders]=useState<Order[]>([]),[notice,setNotice]=useState(''),[simulateFail,setSimulateFail]=useState(false),[paymentMethod,setPaymentMethod]=useState<'MOCK_WALLET'|'MOCK_CARD'>('MOCK_WALLET');
 const [ordersOpen, setOrdersOpen] = useState(false);
@@ -110,7 +116,7 @@ async function checkout() {
     setCartOpen(false);
     setPromotionCode('');
     await payOrder({
-      id: order.id, method: paymentMethod, key: crypto.randomUUID(),
+      id: order.id, method: paymentMethod, key: createPaymentKey(),
       simulate: simulateFail ? 'fail' : 'success',
     });
   } catch (e: any) {
@@ -154,7 +160,7 @@ async function retryPayment(order: Order) {
   setPaying(true);
   try {
     const attempt = paymentAttempts.current.get(order.id) ?? {
-      id: order.id, method: paymentMethod, key: crypto.randomUUID(), simulate: 'success' as const,
+      id: order.id, method: paymentMethod, key: createPaymentKey(), simulate: 'success' as const,
     };
     await payOrder(attempt);
   } catch (e: any) {

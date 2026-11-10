@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: brewlite
+resources:
+  - ../../base
+images:
+  - name: brewlite-api
+    newName: ghcr.io/myngoc09/example_brewlite/api
+    newTag: bootstrap
+  - name: brewlite-web
+    newName: ghcr.io/myngoc09/example_brewlite/web
+    newTag: bootstrap

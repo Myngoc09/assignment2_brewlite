@@ -13,9 +13,9 @@ Không Docker: cần Node 20+ và PostgreSQL 16. Đặt `DATABASE_URL` và `JWT_
 Menu, chi tiết/size/topping, giỏ, JWT auth, tạo đơn, mock payment wallet/card, idempotency, lịch sử/trạng thái, staff status, promotions, loyalty, health. Tiền dùng số nguyên VND. Payment là mô phỏng, không xử lý dữ liệu thẻ thật.
 
 ## Repo
-`apps/web` Next.js · `apps/api` NestJS + Prisma · `docs` requirements/diagrams/architecture/deployment · `tests` · `.github/workflows` CI/CD.
+`apps/web` Next.js · `apps/api` NestJS + Prisma · `k8s/base` manifests · `k8s/overlays/prod` tag production · `k8s/argocd` Application · `.github/workflows` CI/CD · `docs` · `tests`.
 
 ## CI/CD và production
-PR chạy install, lint, unit, kiểm thử luồng HTTP trên PostgreSQL và build. Push main đóng gói image gắn commit SHA lên GHCR rồi triển khai cùng SHA lên Render. Workflow đợi cả API và web hoạt động trước khi smoke test. Xem [cấu hình production, release và rollback](docs/deployment.md). PostgreSQL dùng kết nối nội bộ, migration chạy trước khi API nhận traffic.
+PR chạy lint, unit test, API E2E, Playwright, build và smoke test Kubernetes. Push vào `main` chạy lại CI, xuất hai image theo SHA lên GHCR, rồi cập nhật overlay trên nhánh `production`. Argo CD đồng bộ overlay vào K3s trên Oracle Cloud. Xem [hướng dẫn triển khai và rollback](docs/deployment.md).
 
 Xem [SRS](docs/requirements/srs.md), [context](docs/requirements/context-and-scope.md), [use case](docs/requirements/use-case-checkout.md), [diagrams](docs/diagrams/README.md), [architecture](docs/architecture/architecture.md), [deployment](docs/deployment.md), [traceability](docs/traceability-matrix.md).

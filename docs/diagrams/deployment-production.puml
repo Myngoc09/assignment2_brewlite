@@ -6,26 +6,34 @@ node "GitHub Actions" {
   artifact "Quality gate and CD" as CI
 }
 cloud "GHCR image : SHA" as REG
-node "Render production" {
-  node "Web Docker service" as WEB {
+artifact "Git branch production\nKustomize overlay + image tags" as GIT
+node "Oracle Cloud VM / K3s" {
+  component "Argo CD" as ARGO
+  component "Traefik Ingress" as INGRESS
+  node "Web Deployment and Service" as WEB {
     artifact "Next.js standalone : 3000" as NEXT
   }
-  node "API Docker service" as API {
+  node "API Deployment and Service" as API {
     artifact "NestJS + Prisma : 3001" as NEST
   }
-  database "Managed PostgreSQL : 5432\nPrivate network and persistent disk" as DB
+  database "PostgreSQL : 5432\nClusterIP and PVC" as DB
 }
 node "Developer local" {
   artifact "Docker Compose web/api/db" as LOCAL
   artifact ".env local" as ENV
 }
-PWA --> WEB : HTTPS 443
-WEB --> API : HTTPS 443 / API
+PWA --> INGRESS : HTTPS after TLS setup
+INGRESS --> WEB : HTTP 3000
+WEB --> API : HTTP 3001 / API proxy
 API --> DB : PostgreSQL private connection
 CI --> REG : push SHA (GITHUB_TOKEN)
-CI --> WEB : Render API / HTTPS / commit SHA
-CI --> API : Render API / HTTPS / commit SHA
-API --> DB : pre-deploy migration + catalog seed
+CI --> GIT : update both image tags
+GIT --> ARGO : watch and sync
+ARGO --> WEB : reconcile
+ARGO --> API : reconcile
+WEB --> REG : image pull via K3s
+API --> REG : image pull via K3s
+API --> DB : init container migration and catalog seed
 API --> API : /api/health + logs
 ENV ..> LOCAL : local configuration
 note bottom of CI

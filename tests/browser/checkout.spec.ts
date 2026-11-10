@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
 test('customer orders a customized drink and tracks the confirmation', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Browsers expose randomUUID only in secure contexts.
+    Object.defineProperty(Crypto.prototype, 'randomUUID', { value: undefined });
+  });
   await page.goto('/');
   await page.getByRole('heading', { name: 'Cloud Matcha' }).click();
   const product = page.locator('.product-modal');

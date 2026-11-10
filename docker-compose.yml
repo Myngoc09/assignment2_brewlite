@@ -5,13 +5,14 @@ services:
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U brewlite -d brewlite"], interval: 5s, timeout: 3s, retries: 20 }
   migrate:
-    build: ./apps/api
-    command: sh -c "npx prisma migrate deploy && npm run db:seed"
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    command: sh -c "npm run db:deploy && npm run db:seed"
     environment:
+      NODE_ENV: development
       DATABASE_URL: postgresql://brewlite:brewlite_local@db:5432/brewlite?schema=public
     depends_on: { db: { condition: service_healthy } }
   api:
-    build: ./apps/api
+    build: { context: ., dockerfile: apps/api/Dockerfile }
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://brewlite:brewlite_local@db:5432/brewlite?schema=public
@@ -22,7 +23,7 @@ services:
     depends_on: { migrate: { condition: service_completed_successfully } }
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 10s, timeout: 3s, retries: 10 }
   web:
-    build: ./apps/web
+    build: { context: ., dockerfile: apps/web/Dockerfile }
     environment: { API_SERVER_URL: http://api:3001 }
     ports: ["${BREWLITE_WEB_PORT:-3000}:3000"]
     depends_on: { api: { condition: service_healthy } }

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: brewlite
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Myngoc09/example_brewlite.git
+    targetRevision: production
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: brewlite
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5

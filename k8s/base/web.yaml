@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brewlite-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: brewlite-web
+  template:
+    metadata:
+      labels:
+        app: brewlite-web
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: web
+          image: brewlite-web
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: API_SERVER_URL
+              value: http://brewlite-api:3001
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: brewlite-web
+spec:
+  selector:
+    app: brewlite-web
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
