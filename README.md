@@ -12,6 +12,17 @@ Không Docker: cần Node 20+ và PostgreSQL 16. Đặt `DATABASE_URL` và `JWT_
 ## Chức năng
 Menu, chi tiết/size/topping, giỏ, JWT auth, tạo đơn, mock payment wallet/card, idempotency, lịch sử/trạng thái, staff status, promotions, loyalty, health. Tiền dùng số nguyên VND. Payment là mô phỏng, không xử lý dữ liệu thẻ thật.
 
+## Demo theo đề BrewLite
+
+1. Mở **Thực đơn**, chọn một món, chọn size S/M/L và topping. Thêm món vào giỏ, tăng/giảm số lượng hoặc xóa món để kiểm tra tổng tiền.
+2. Bấm **Thanh toán**, đăng ký hoặc đăng nhập, rồi mở lại giỏ. Chọn **Ví mô phỏng** hoặc **Thẻ mô phỏng**. Nhập `BREW10` để giảm 10%.
+3. Bật **Mô phỏng thất bại**, xác nhận thanh toán rồi quay về giỏ để kiểm tra các món vẫn còn nguyên. Mở **Đơn hàng** để thấy trạng thái `PAYMENT_FAILED`. Đơn chưa thanh toán có thể hủy từ lịch sử để trả lại tồn kho.
+4. Quay lại thanh toán với cùng giỏ và mã ưu đãi, bỏ chọn mô phỏng lỗi rồi xác nhận. Màn hình xác nhận hiển thị mã đơn, trạng thái `PAID` và số tiền đã trả. Trong lịch sử, kiểm tra chỉ có một đơn, mở **Theo dõi đơn** để xem các mốc trạng thái và xem điểm tích lũy.
+
+API theo đề dùng tiền tố `/api`. Gọi `POST /orders` để nhận đơn `PENDING`, rồi `POST /payments` với body `{ "orderId": "...", "method": "MOCK_WALLET" }` và header `Idempotency-Key` dài 8–128 ký tự. Gửi lại cùng khóa cho cùng đơn để kiểm tra API trả về cùng giao dịch. `GET /orders/me` trả lịch sử của tài khoản đang đăng nhập.
+
+Để demo bước pha chế, đăng nhập bằng tài khoản nhân viên mẫu qua `POST /api/auth/login`, dùng JWT nhận được gọi `PATCH /api/orders/:id/status` lần lượt với `{"status":"PREPARING"}`, `{"status":"READY"}`, `{"status":"COMPLETED"}`. Thử chuyển thẳng từ `PAID` sang `READY` để kiểm tra lỗi HTTP 409.
+
 ## Repo
 `apps/web` Next.js · `apps/api` NestJS + Prisma · `k8s/base` manifests · `k8s/overlays/prod` tag production · `k8s/argocd` Application · `.github/workflows` CI/CD · `docs` · `tests`.
 

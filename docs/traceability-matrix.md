@@ -6,8 +6,8 @@
 | FR-03 | UC-04 cart | Activity | Next cart, order-pricing | orders.service.spec, checkout.spec |
 | FR-04 | UC-03 auth | Sequence/JWT | POST auth/register, login | validation/hash |
 | FR-05 | UC-04 order | Sequence/Class | POST /api/orders | app.e2e-spec, checkout.spec |
-| FR-06 | UC-04 payment | Sequence alt | POST /api/orders/:id/pay | app.e2e-spec, checkout.spec |
-| FR-07 | UC-05 history | User-Order, OrderStatusHistory | GET /api/orders/mine, /:id | app.e2e-spec, checkout.spec |
+| FR-06 | UC-04 payment | Sequence alt | POST /api/payments | app.e2e-spec, checkout.spec |
+| FR-07 | UC-05 history | User-Order, OrderStatusHistory | GET /api/orders/me, /:id | app.e2e-spec, checkout.spec |
 | FR-08 | UC-06 status | OrderStatus, OrderStatusHistory | PATCH /api/orders/:id/status | app.e2e-spec |
 | FR-09 | UC-04 promotion | Promotion | POST orders | active/expiry |
 | FR-10 | UC-05 loyalty | LoyaltyTransaction | Payment success | earn record |

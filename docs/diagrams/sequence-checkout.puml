@@ -12,7 +12,7 @@ API -> DB: BEGIN; read price/options/stock
 DB --> API: Catalog + inventory
 API -> DB: INSERT order/items; decrement stock
 DB --> API: COMMIT + orderId
-API --> UI: 201 PENDING_PAYMENT
+API --> UI: 201 PENDING
 UI -> API: POST /api/orders/{id}/pay + Idempotency-Key
 API -> API: Verify JWT + ownership
 API -> DB: Find prior payment by order and key
@@ -23,7 +23,7 @@ else first attempt
  API -> Pay: Simulate mock method
  alt success
   Pay --> API: approved
-  API -> DB: Transaction: claim payable order and write\nSUCCEEDED + CONFIRMED + timeline + loyalty
+  API -> DB: Transaction: claim payable order and write\nSUCCEEDED + PAID + timeline + loyalty
   DB --> API: committed
   API --> UI: confirmed + order number
  else failure
