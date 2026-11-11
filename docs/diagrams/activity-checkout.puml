@@ -1,35 +1,109 @@
+
 @startuml
-|Khách hàng|
+title ACTIVITY DIAGRAM - ĐẶT HÀNG BREWLITE
+
+skinparam shadowing false
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+skinparam partition {
+    BackgroundColor #F8F9F9
+    BorderColor #566573
+}
+
+|KHÁCH HÀNG|
 start
-:Xem menu;
-:Chọn món, size, topping và số lượng;
-|Next.js UI|
-if (Chưa đăng nhập?) then (có)
-:Yêu cầu đăng nhập;
-|Khách hàng|
-:Đăng nhập;
-|Next.js UI|
+:Truy cập giỏ hàng;
+:Xem danh sách sản phẩm trong giỏ;
+
+|HỆ THỐNG|
+:Lấy thông tin giỏ hàng;
+:Tính tổng tiền;
+
+|KHÁCH HÀNG|
+:Xác nhận đặt hàng;
+
+|HỆ THỐNG|
+:Kiểm tra giỏ hàng;
+
+if (Giỏ hàng hợp lệ?) then (Không)
+  |KHÁCH HÀNG|
+    :Thông báo giỏ hàng trống;
+    stop
+else (Có)
 endif
-|NestJS API|
-:Validate JWT, dữ liệu, tồn;
-if (Hợp lệ và còn hàng?) then (có)
-:Ghi order và trừ tồn
-trong transaction;
-if (Thanh toán thành công?) then (có)
-:Cập nhật PAID;
-|Khách hàng|
-:Hiện mã đơn;
-else (không)
-:Cập nhật PAYMENT_FAILED;
-|Khách hàng|
-:Hiện lỗi / thử lại;
+
+:Kiểm tra trạng thái đăng nhập;
+
+if (Đã đăng nhập?) then (Chưa)
+    |KHÁCH HÀNG|
+    :Chọn đăng ký / đăng nhập;
+    :Nhập thông tin tài khoản;
+
+    |HỆ THỐNG|
+    :Xác thực thông tin tài khoản;
+
+    if (Thông tin hợp lệ?) then (Không)
+        :Thông báo lỗi xác thực;
+        stop
+    else (Có)
+        :Xác nhận đăng nhập;
+    endif
+else (Rồi)
 endif
-else (không)
-if (Hết hàng?) then (có)
-:Thông báo hết hàng;
-else (không)
-:Thông báo dữ liệu lỗi;
+
+|KHÁCH HÀNG|
+:Nhập thông tin người nhận;
+:Nhập số điện thoại;
+:Nhập địa chỉ giao hàng;
+
+|HỆ THỐNG|
+:Kiểm tra thông tin nhận hàng;
+
+while (Thông tin hợp lệ?) is (Không)
+    :Thông báo thông tin không hợp lệ;
+
+    |KHÁCH HÀNG|
+    :Nhập lại thông tin nhận hàng;
+
+    |HỆ THỐNG|
+    :Kiểm tra lại thông tin;
+endwhile (Có)
+
+|HỆ THỐNG|
+:Kiểm tra sản phẩm và tồn kho;
+
+if (Sản phẩm còn hàng?) then (Không)
+
+    |KHÁCH HÀNG|
+        :Thông báo sản phẩm hết hàng;
+
+    :Điều chỉnh giỏ hàng;
+    stop
+else (Có)
 endif
-endif
+
+|HỆ THỐNG|
+:Bắt đầu transaction;
+:Tạo đơn hàng trạng thái PENDING;
+:Lưu thông tin đơn hàng;
+:Lưu chi tiết đơn hàng;
+:Commit transaction;
+
+|KHÁCH HÀNG|
+:Chờ xác nhận đặt hàng;
+
+|HỆ THỐNG|
+:Tạo đơn hàng thành công;
+:Trả về mã đơn hàng;
+
+|KHÁCH HÀNG|
+:Nhận thông báo tạo đơn hàng thành công;
+:Xem thông tin đơn hàng;
+:Chuyển sang quy trình thanh toán;
+
 stop
 @enduml

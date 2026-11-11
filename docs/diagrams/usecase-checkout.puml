@@ -1,0 +1,49 @@
+@startuml
+top to bottom direction
+skinparam linetype ortho
+!pragma layout smetana
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+skinparam actor {
+    BackgroundColor #E1F5FE
+    BorderColor #0288D1
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #0288D1
+    ArrowColor #37474F
+}
+
+actor "Khách hàng" as Customer
+actor "Database" as Database
+
+rectangle "   " {
+   
+    usecase "Xem giỏ hàng" as UC1
+    usecase "Đặt hàng" as UC3
+    usecase "Nhập thông tin giao hàng" as UC2
+    usecase "Kiểm tra tồn kho" as UC4
+    usecase "Tạo đơn hàng (PENDING)" as UC5
+    usecase "Trừ số lượng tồn kho" as UC7
+    usecase "Làm trống giỏ hàng" as UC8
+}
+
+
+Customer -- UC1
+
+UC1 ..> UC3 : <<include>>
+UC3 ..> UC2 : <<include>>
+UC3 ..> UC4 : <<include>>
+UC3 ..> UC5 : <<include>>
+UC3 ..> UC7 : <<include>>
+UC3 ..> UC8 : <<include>>
+
+UC4 -- Database
+UC5 -- Database
+UC7 -- Database
+UC8 -- Database
+
+@enduml

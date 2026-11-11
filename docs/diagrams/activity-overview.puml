@@ -1,0 +1,143 @@
+
+@startuml
+title ACTIVITY OVERVIEW - BREWLITE SYSTEM
+
+skinparam shadowing false
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+skinparam partition {
+    BackgroundColor #F8F9F9
+    BorderColor #566573
+}
+
+|KHÁCH HÀNG|
+start
+:Truy cập BrewLite;
+
+|HỆ THỐNG|
+:Hiển thị trang chủ và menu;
+:Lấy danh sách sản phẩm;
+
+|KHÁCH HÀNG|
+:Xem menu;
+:Chọn sản phẩm;
+
+|HỆ THỐNG|
+:Hiển thị chi tiết sản phẩm;
+
+|KHÁCH HÀNG|
+:Chọn size và topping;
+:Thêm sản phẩm vào giỏ hàng;
+:Xem giỏ hàng;
+
+|HỆ THỐNG|
+:Cập nhật giỏ hàng;
+:Tính tổng tiền;
+
+|KHÁCH HÀNG|
+if (Tiếp tục mua hàng?) then (Có)
+    :Tiếp tục chọn sản phẩm;
+    |HỆ THỐNG|
+    :Cập nhật giỏ hàng;
+    |KHÁCH HÀNG|
+else (Không)
+    :Tiến hành đặt hàng;
+endif
+
+|HỆ THỐNG|
+:Kiểm tra giỏ hàng;
+
+if (Giỏ hàng hợp lệ?) then (Không)
+    :Thông báo giỏ hàng trống;
+    stop
+else (Có)
+endif
+
+:Kiểm tra trạng thái đăng nhập;
+
+if (Đã đăng nhập?) then (Chưa)
+    |KHÁCH HÀNG|
+    :Đăng ký / Đăng nhập;
+    :Nhập thông tin tài khoản;
+
+    |HỆ THỐNG|
+    :Xác thực thông tin;
+
+    if (Thông tin hợp lệ?) then (Không)
+      |KHÁCH HÀNG|
+        :Thông báo lỗi;
+        stop
+    else (Có)
+      |HỆ THỐNG|
+        :Xác nhận đăng nhập;
+    endif
+else (Đã)
+endif
+
+|KHÁCH HÀNG|
+:Nhập thông tin nhận hàng;
+:Chọn phương thức thanh toán;
+:Xác nhận đặt hàng;
+
+|HỆ THỐNG|
+:Kiểm tra sản phẩm và tồn kho;
+
+if (Sản phẩm còn hàng?) then (Không)
+    |KHÁCH HÀNG|
+    :Hiện thông báo sản phẩm hết hàng;
+
+    :Điều chỉnh giỏ hàng;
+    stop
+else (Có)
+endif
+
+
+|HỆ THỐNG|
+:Tạo đơn hàng;
+:Lưu thông tin đơn hàng;
+:Gửi yêu cầu thanh toán;
+:Xử lý thanh toán;
+
+if (Thanh toán thành công?) then (Có)
+    :Cập nhật trạng thái đơn hàng;
+    :Lưu thông tin thanh toán;
+    :Cập nhật số lượng tồn kho;
+    :Làm trống giỏ hàng;
+else (Không)
+    :Thông báo thanh toán thất bại;
+
+    |KHÁCH HÀNG|
+    if (Thử thanh toán lại?) then (Có)
+        :Yêu cầu thanh toán lại;
+
+        |HỆ THỐNG|
+        :Xử lý thanh toán lại;
+
+        if (Thanh toán lại thành công?) then (Có)
+            :Cập nhật trạng thái đơn hàng;
+            :Lưu thông tin thanh toán;
+            :Cập nhật số lượng tồn kho;
+            :Làm trống giỏ hàng;
+        else (Không)
+            :Thông báo thanh toán thất bại;
+            stop
+        endif
+    else (Không)
+        :Hủy giao dịch;
+        stop
+    endif
+endif
+
+|HỆ THỐNG|
+:Gửi thông báo xác nhận đơn hàng;
+
+|KHÁCH HÀNG|
+:Nhận thông báo;
+:Theo dõi trạng thái đơn hàng;
+:Xem lịch sử đơn hàng;
+
+stop
