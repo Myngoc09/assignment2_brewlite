@@ -1,37 +1,73 @@
 @startuml
-autonumber
-actor Customer
-participant "Next.js UI" as UI
-participant "NestJS API" as API
-database PostgreSQL as DB
-participant "Payment Service (mock)" as Pay
-Customer -> UI: Checkout
-UI -> API: POST /api/orders (JWT, items)
-API -> API: Validate DTO + JWT
-API -> DB: BEGIN; read price/options/stock
-DB --> API: Catalog + inventory
-API -> DB: INSERT order/items; decrement stock
-DB --> API: COMMIT + orderId
-API --> UI: 201 PENDING
-UI -> API: POST /api/orders/{id}/pay + Idempotency-Key
-API -> API: Verify JWT + ownership
-API -> DB: Find prior payment by order and key
-alt replay
- DB --> API: Existing payment/order
- API --> UI: Return prior result (no duplicate)
-else first attempt
- API -> Pay: Simulate mock method
- alt success
-  Pay --> API: approved
-  API -> DB: Transaction: claim payable order and write\nSUCCEEDED + PAID + timeline + loyalty
-  DB --> API: committed
-  API --> UI: confirmed + order number
- else failure
-  Pay --> API: declined
-  API -> DB: Transaction: claim payable order and write\nFAILED + PAYMENT_FAILED + timeline
-  DB --> API: committed
-  API --> UI: failure + retry guidance
- end
+autonumber "<b>0.#'.'</b>"
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #37474F
+    LifeLineBorderColor #0288D1
+    LifeLineBackgroundColor #E1F5FE
+    ParticipantBorderColor #0288D1
+    ParticipantBackgroundColor #E1F5FE
+    ActorBorderColor #0288D1
+    ActorBackgroundColor #E1F5FE
+}
+
+actor "Khách hàng" as Customer
+participant "Hệ thống" as System
+database "Cơ sở dữ liệu" as DB
+
+Customer -> System : Yêu cầu xem giỏ hàng
+activate Customer
+activate System
+
+System -> DB : Lấy thông tin giỏ hàng
+activate DB
+DB --> System : Trả về danh sách sản phẩm
+deactivate DB
+
+System --> Customer : Hiển thị giỏ hàng
+deactivate System
+deactivate Customer
+
+Customer -> System : Chọn Đặt hàng
+activate Customer
+activate System
+
+System --> Customer : Hiển thị form giao hàng
+deactivate System
+deactivate Customer
+
+Customer -> System : Nhập thông tin giao hàng
+activate Customer
+activate System
+
+System -> System : Kiểm tra thông tin giao hàng
+
+alt Thông tin không hợp lệ
+    System --> Customer : Thông báo lỗi
+else Thông tin hợp lệ
+    System -> DB : Kiểm tra số lượng tồn kho
+    activate DB
+    DB --> System : Trả về kết quả
+    deactivate DB
+
+    alt Không đủ hàng
+        System --> Customer : Thông báo không đủ hàng
+    else Đủ hàng
+        System -> DB : Tạo đơn hàng (PENDING)
+        activate DB
+        DB --> System : Xác nhận tạo đơn hàng
+
+        System -> DB : Cập nhật số lượng tồn kho
+        DB --> System : Xác nhận cập nhật
+
+        System -> DB : Xóa sản phẩm trong giỏ hàng
+        DB --> System : Xác nhận xóa giỏ hàng
+        deactivate DB
+
+        System --> Customer : Đặt hàng thành công
+    end
 end
-UI --> Customer: Show final state
+deactivate System
+deactivate Customer
+
 @enduml
