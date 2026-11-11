@@ -41,6 +41,9 @@ describe('Checkout with PostgreSQL', () => {
     const customer = await login('customer@brewlite.local');
 
     await client().post('/api/orders').send({ items: [item] }).expect(401);
+    for (const items of [[], [null], [[item]]]) {
+      await client().post('/api/orders').set(customer).send({ items }).expect(400);
+    }
     await client().post('/api/orders').set(customer)
       .send({ items: [item, { ...item, quantity: detail.body.inventory }] }).expect(400);
     const unchanged = await client().get(`/api/products/${item.productId}`).expect(200);
@@ -141,5 +144,23 @@ describe('Checkout with PostgreSQL', () => {
     expect(attempts.map(response => response.status).sort()).toEqual([201, 409]);
     const confirmed = await client().get(path).set(customer).expect(200);
     expect(confirmed.body.payments).toHaveLength(1);
+  });
+
+  it('replays the same failed payment when the key arrives concurrently', async () => {
+    const customer = await login('customer@brewlite.local');
+    const { body: order } = await client().post('/api/orders').set(customer)
+      .send({ items: [await firstMenuItem()] }).expect(201);
+    const key = randomUUID();
+    const attempts = await Promise.all([1, 2].map(() =>
+      client().post('/api/payments').set(customer).set('Idempotency-Key', key)
+        .send({ orderId: order.id, method: 'MOCK_CARD', simulate: 'fail' }).expect(201),
+    ));
+    expect(attempts.map(({ body }) => body.replayed).sort()).toEqual([false, true]);
+    expect(attempts[0].body.payment.id).toBe(attempts[1].body.payment.id);
+    expect(attempts[0].body.order.status).toBe('PAYMENT_FAILED');
+    const confirmed = await client().get(`/api/orders/${order.id}`).set(customer).expect(200);
+    expect(confirmed.body.payments).toHaveLength(1);
+    expect(confirmed.body.statusHistory.map((entry: { status: string }) => entry.status))
+      .toEqual(['PENDING', 'PAYMENT_FAILED']);
   });
 });
