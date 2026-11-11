@@ -62,6 +62,38 @@ curl -fsS http://127.0.0.1:8080/api/products
 
 Nếu API chưa lên, xem `kubectl -n brewlite logs deploy/brewlite-api -c migrate` và kiểm tra PostgreSQL đã Ready. Với `ImagePullBackOff`, kiểm tra tên, tag image và quyền đọc GHCR. Kiểm tra lại cùng ba endpoint qua URL HTTPS sau khi mở Ingress.
 
+## Dùng domain riêng qua Cloudflare trên Oracle Cloud
+
+Sau khi BrewLite đã chạy trên **K3s của VM Oracle Cloud**, tạo một Cloudflare Tunnel trong **Networking → Tunnels**. Connector chạy cùng cluster với BrewLite và tiếp tục hoạt động khi tắt máy cá nhân. API và PostgreSQL dùng Service nội bộ. [Cloudflare Tunnel trên Kubernetes](https://developers.cloudflare.com/tunnel/guides/kubernetes/)
+
+1. Chọn kiểu cài đặt Docker và sao chép riêng token của tunnel. Trong **Published application routes**, chọn domain `brewlite.dpdns.org` và để trống Subdomain để dùng domain gốc. Chọn **HTTP** và nhập **brewlite-web.brewlite.svc.cluster.local:3000**. Route áp dụng cho toàn bộ hostname, gồm cả `/api/*`. Cloudflare tạo DNS record cho route khi lưu. Nếu hostname đã có record phục vụ dịch vụ khác, dùng một subdomain dành riêng cho BrewLite.
+2. Trên VM hoặc máy quản trị dùng kubeconfig trỏ tới cluster Oracle Cloud, kiểm tra context và Service rồi lưu token vào Kubernetes Secret. Chạy bằng Bash từ thư mục gốc repo. Token được nhập ẩn và truyền qua stdin.
+
+   ```bash
+   kubectl config current-context
+   kubectl -n brewlite get svc brewlite-web
+   (
+     set +x
+     set -eu
+     read -rsp 'Cloudflare tunnel token: ' tunnel_token
+     printf '\n'
+     test -n "$tunnel_token"
+     printf '%s' "$tunnel_token" | kubectl -n brewlite create secret generic brewlite-cloudflare --from-file=token=/dev/stdin
+   ) && kubectl apply -f k8s/cloudflare/deployment.yaml &&
+     kubectl -n brewlite rollout status deployment/brewlite-cloudflared --timeout=120s
+   ```
+
+3. Kiểm tra HTTPS trên domain BrewLite. Đăng ký tài khoản mới trên bản deploy để thử đặt hàng và thanh toán mô phỏng.
+
+   ```bash
+   origin=https://brewlite.dpdns.org
+   curl -fsS -o /dev/null "$origin/"
+   curl -fsS "$origin/api/health"
+   curl -fsS "$origin/api/products"
+   ```
+
+Đặt GitHub Actions repository variable `PRODUCTION_WEB_URL` bằng URL HTTPS này để CD kiểm tra bản phát hành sau khi Argo CD đồng bộ. Nếu tunnel chưa kết nối, xem `kubectl -n brewlite logs deployment/brewlite-cloudflared` và kiểm tra egress tới Cloudflare trên cổng 7844.
+
 ## Demo HTTPS từ Docker Desktop
 
 Sau khi rollout bản phát hành đã kiểm thử vào cluster `docker-desktop`, chuyển tiếp riêng Service của web. Cổng này chỉ lắng nghe trên máy cục bộ.

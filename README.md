@@ -31,6 +31,8 @@ PR chạy lint, unit test, API E2E, Playwright, build và smoke test Kubernetes.
 
 Xem [SRS](docs/requirements/srs.md), [context](docs/requirements/context-and-scope.md), [use case](docs/requirements/use-case-checkout.md), [diagrams](docs/diagrams/README.md), [architecture](docs/architecture/architecture.md), [deployment](docs/deployment.md), [traceability](docs/traceability-matrix.md).
 
-## Demo HTTPS qua Cloudflare
+## HTTPS qua Cloudflare
+
+Để truy cập bằng domain riêng khi máy cá nhân đã tắt, xem [triển khai Cloudflare Tunnel trên K3s](docs/deployment.md#dùng-domain-riêng-qua-cloudflare-trên-oracle-cloud).
 
 BrewLite có thể chạy trên cluster Docker Desktop và phục vụ một URL HTTPS tạm qua Cloudflare Quick Tunnel. Xem [cách tạo tunnel và kiểm tra đúng bản deploy](docs/deployment.md#demo-https-từ-docker-desktop).
