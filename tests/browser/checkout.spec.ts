@@ -10,6 +10,7 @@ test('customer orders a customized drink and tracks the confirmation', async ({ 
   await page.getByRole('heading', { name: 'Cloud Matcha' }).click();
   const product = page.locator('.product-modal');
   await expect(product.getByRole('heading', { name: 'Cloud Matcha' })).toBeVisible();
+  await expect(product.getByRole('button', { name: /^L/ })).toContainText(/\d+ ly/);
   await product.getByRole('button', { name: /^L/ }).click();
   await product.getByRole('checkbox', { name: /Trân châu/ }).check();
   await product.getByRole('button', { name: /Thêm vào giỏ/ }).click();

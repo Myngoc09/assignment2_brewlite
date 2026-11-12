@@ -163,4 +163,82 @@ describe('Checkout with PostgreSQL', () => {
     expect(confirmed.body.statusHistory.map((entry: { status: string }) => entry.status))
       .toEqual(['PENDING', 'PAYMENT_FAILED']);
   });
+
+  it('calculates availability by size and atomically reserves and returns shared ingredients', async () => {
+    const db = app.get(PrismaService);
+    const customer = await login('customer@brewlite.local');
+    const staff = await login('staff@brewlite.local');
+    const inventory = '/api/inventory';
+    const suffix = randomUUID().toUpperCase();
+    const product = await db.product.create({
+      data: {
+        slug: `inventory-test-${suffix}`, name: 'Inventory test', description: '', category: 'Test',
+        sizes: { create: ['S', 'M', 'L'].map(name => ({ name, priceCents: 30000 })) },
+        toppings: { create: { name: 'Matcha extra', priceCents: 5000 } },
+      },
+      include: { sizes: true, toppings: true },
+    });
+    const ingredientIds: string[] = [];
+    const createIngredient = async (code: string, unit: string, quantity: number) => {
+      const { body } = await client().post(`${inventory}/ingredients`).set(staff)
+        .send({ code: `${code}-${suffix}`, unit, name: code }).expect(201);
+      ingredientIds.push(body.id);
+      await client().post(`${inventory}/ingredients/${body.id}/receipts`).set(staff)
+        .send({ quantity }).expect(201);
+      return body.id as string;
+    };
+    const availability = async () => {
+      const { body } = await client().get(`/api/products/${product.id}`).expect(200);
+      return Object.fromEntries(body.sizes.map((size: { name: string; availableQuantity: number }) =>
+        [size.name, size.availableQuantity]));
+    };
+    const place = (items: { size: string; quantity: number; toppings?: string[] }[]) =>
+      client().post('/api/orders').set(customer).send({
+        items: items.map(item => ({ productId: product.id, toppings: [], ...item })),
+      });
+    const cancel = (orderId: string) => client().patch(`/api/orders/${orderId}/status`).set(customer)
+      .send({ status: 'CANCELLED' });
+    try {
+      await client().get(`${inventory}/ingredients`).expect(401);
+      await client().get(`${inventory}/ingredients`).set(customer).expect(403);
+      const milk = await createIngredient('MILK', 'ML', 2000);
+      const matcha = await createIngredient('MATCHA', 'G', 24);
+      const setSize = (name: string, milkQuantity: number, matchaQuantity: number) =>
+        client().put(`${inventory}/sizes/${product.sizes.find(size => size.name === name)!.id}/recipe`).set(staff)
+          .send({ ingredients: [
+            { ingredientId: milk, quantity: milkQuantity }, { ingredientId: matcha, quantity: matchaQuantity },
+          ] }).expect(200);
+      await setSize('S', 150, 3);
+      await setSize('M', 200, 4);
+      await setSize('L', 250, 5);
+      await client().put(`${inventory}/toppings/${product.toppings[0].id}/recipe`).set(staff)
+        .send({ ingredients: [{ ingredientId: matcha, quantity: 2 }] }).expect(200);
+
+      expect(await availability()).toEqual({ S: 8, M: 6, L: 4 });
+      await place([{ size: 'L', quantity: 4 }, { size: 'M', quantity: 1, toppings: ['Matcha extra'] }]).expect(400);
+      expect(await availability()).toEqual({ S: 8, M: 6, L: 4 });
+      expect((await db.ingredient.findUniqueOrThrow({ where: { id: milk } })).available).toBe(2000);
+
+      const { body: order } = await place([{ size: 'L', quantity: 2 }]).expect(201);
+      expect(await availability()).toEqual({ S: 4, M: 3, L: 2 });
+      await setSize('L', 300, 6);
+      await cancel(order.id).expect(200);
+      await cancel(order.id).expect(409);
+      expect(await availability()).toEqual({ S: 8, M: 6, L: 4 });
+      const { body: movements } = await client().get(`${inventory}/ingredients/${matcha}/movements`)
+        .set(staff).expect(200);
+      expect(movements.map(({ type, quantity }: { type: string; quantity: number }) => [type, quantity]))
+        .toEqual([['RELEASE', 10], ['RESERVE', 10], ['RECEIPT', 24]]);
+
+      const attempts = await Promise.all([place([{ size: 'L', quantity: 3 }]), place([{ size: 'L', quantity: 3 }])]);
+      expect(attempts.map(result => result.status).sort()).toEqual([201, 400]);
+      expect(await availability()).toEqual({ S: 2, M: 1, L: 1 });
+      await cancel(attempts.find(result => result.status === 201)!.body.id).expect(200);
+    } finally {
+      await db.order.deleteMany({ where: { items: { some: { productId: product.id } } } });
+      await db.product.delete({ where: { id: product.id } });
+      await db.stockMovement.deleteMany({ where: { ingredientId: { in: ingredientIds } } });
+      await db.ingredient.deleteMany({ where: { id: { in: ingredientIds } } });
+    }
+  });
 });

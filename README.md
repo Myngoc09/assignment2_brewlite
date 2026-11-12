@@ -12,6 +12,8 @@ Không Docker: cần Node 20+ và PostgreSQL 16. Đặt `DATABASE_URL` và `JWT_
 ## Chức năng
 Menu, chi tiết/size/topping, giỏ, JWT auth, tạo đơn, mock payment wallet/card, idempotency, lịch sử/trạng thái, staff status, promotions, loyalty, health. Tiền dùng số nguyên VND. Payment là mô phỏng, không xử lý dữ liệu thẻ thật.
 
+Tồn kho theo nguyên liệu dùng công thức từng size và topping. Nhân viên có thể nhập kho, sửa công thức và xem lịch sử biến động qua API. Xem [kịch bản Thunder Client](docs/inventory-thunder-client.md) để kiểm tra số ly có thể pha trước và sau khi đặt hoặc hủy đơn.
+
 ## Demo theo đề BrewLite
 
 1. Mở **Thực đơn**, chọn một món, chọn size S/M/L và topping. Thêm món vào giỏ, tăng/giảm số lượng hoặc xóa món để kiểm tra tổng tiền.

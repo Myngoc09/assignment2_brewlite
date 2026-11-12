@@ -42,6 +42,7 @@ model User {
   createdAt DateTime @default(now())
   orders Order[]
   loyalty LoyaltyTransaction[]
+  stockMovements StockMovement[]
   statusChanges OrderStatusHistory[] @relation("OrderStatusChangedBy")
 }
 model Product {
@@ -64,6 +65,7 @@ model ProductSize {
   priceCents Int
   productId String
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  recipe RecipeIngredient[]
   @@unique([productId, name])
 }
 model ProductTopping {
@@ -72,6 +74,7 @@ model ProductTopping {
   priceCents Int
   productId String
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  recipe ToppingIngredient[]
   @@unique([productId, name])
 }
 model Order {
@@ -90,6 +93,7 @@ model Order {
   promotion Promotion? @relation(fields: [promotionId], references: [id])
   promotionId String?
   loyalty LoyaltyTransaction[]
+  stockMovements StockMovement[]
   statusHistory OrderStatusHistory[]
   @@index([userId, createdAt])
 }
@@ -117,6 +121,7 @@ model OrderItem {
   quantity Int
   unitPriceCents Int
   lineTotalCents Int
+  usesProductStock Boolean @default(true)
 }
 model Payment {
   id String @id @default(uuid())
@@ -149,4 +154,60 @@ model LoyaltyTransaction {
   points Int
   createdAt DateTime @default(now())
   @@index([userId, createdAt])
+}
+
+enum IngredientUnit {
+  ML
+  G
+  PIECE
+}
+
+enum StockMovementType {
+  RECEIPT
+  RESERVE
+  RELEASE
+}
+
+model Ingredient {
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  unit IngredientUnit
+  available Int @default(0)
+  sizes RecipeIngredient[]
+  toppings ToppingIngredient[]
+  movements StockMovement[]
+}
+
+model RecipeIngredient {
+  sizeId String
+  size ProductSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity Int
+  @@id([sizeId, ingredientId])
+}
+
+model ToppingIngredient {
+  toppingId String
+  topping ProductTopping @relation(fields: [toppingId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity Int
+  @@id([toppingId, ingredientId])
+}
+
+model StockMovement {
+  id String @id @default(uuid())
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  orderId String?
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actorId String?
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  type StockMovementType
+  quantity Int
+  createdAt DateTime @default(now())
+  @@index([ingredientId, createdAt])
+  @@unique([orderId, ingredientId, type])
 }
