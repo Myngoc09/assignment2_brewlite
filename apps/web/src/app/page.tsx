@@ -4,10 +4,13 @@ import Image from 'next/image';
 import {api} from '@/lib/api';
 type S={id:string;
 name:string;
-priceCents:number};
+priceCents:number;
+availableQuantity?:number;
+usesProductStock?:boolean};
 type T={id:string;
 name:string;
-priceCents:number};
+priceCents:number;
+availableQuantity?:number | null};
 type P={id:string;
 slug:string;
 name:string;
@@ -86,17 +89,32 @@ async function open(p: P) {
   try {
     const product = await api<P>(`/products/${p.id}`);
     setSelection(product);
-    setSize(product.sizes.find(option => option.name === 'M') ?? product.sizes[0] ?? null);
+    const availableSizes = product.sizes.filter(option => (option.availableQuantity ?? product.inventory) > 0);
+    setSize(availableSizes.find(option => option.name === 'M') ?? availableSizes[0] ?? null);
     setTops([]);
   } catch (e: any) {
     toast(e.message);
   }
 }
-function cartQuantity(productId: string) {
-  return cart.reduce((quantity, line) => line.product.id === productId ? quantity + line.quantity : quantity, 0);
+function canAdd(product: P, option: S, toppings: T[]) {
+  const menuItem = selection?.id === product.id ? selection : products.find(item => item.id === product.id) ?? product;
+  const currentSize = menuItem.sizes.find(size => size.id === option.id) ?? option;
+  const usesProductStock = currentSize.usesProductStock ?? true;
+  const quantity = cart.filter(line => line.product.id === product.id && (usesProductStock
+    ? (line.size.usesProductStock ?? true)
+    : line.size.id === option.id)).reduce((count, line) => count + line.quantity, 0);
+  if (quantity >= (currentSize.availableQuantity ?? menuItem.inventory)) return false;
+
+  return toppings.every(topping => {
+    const current = menuItem.toppings.find(item => item.id === topping.id) ?? topping;
+    if (current.availableQuantity == null) return true;
+    const inCart = cart.filter(line => line.toppings.some(item => item.id === topping.id))
+      .reduce((count, line) => count + line.quantity, 0);
+    return inCart < current.availableQuantity;
+  });
 }
 function add(){if(!selection||!size)return;
-if (cartQuantity(selection.id) >= selection.inventory) {
+if (!canAdd(selection, size, tops)) {
   toast('Số lượng trong giỏ đã bằng số lượng còn lại.');
   return;
 }
@@ -373,12 +391,12 @@ setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button classNa
 <p>{selection.description}</p>
 <h4>Kích cỡ</h4>
 <div className="option-row">{[...selection.sizes].sort((a, b) => a.priceCents - b.priceCents).map(s=>
-<button className={size?.id===s.id?'chosen':''} onClick={()=>setSize(s)} key={s.id}>{s.name}<b>{money(s.priceCents)}</b>
+<button className={size?.id===s.id?'chosen':''} disabled={(s.availableQuantity ?? selection.inventory) === 0} onClick={()=>setSize(s)} key={s.id}>{s.name}<b>{money(s.priceCents)}</b><small>{s.availableQuantity ?? selection.inventory} ly</small>
 </button>)}</div>
 <h4>Thêm topping</h4>{selection.toppings.map(t=>
 <label className="topping" key={t.id}>
-<input type="checkbox" checked={tops.some(x=>x.id===t.id)} onChange={e=>setTops(v=>e.target.checked?[...v,t]:v.filter(x=>x.id!==t.id))}/>{t.name}<span>+{money(t.priceCents)}</span>
-</label>)}<button className="primary full" disabled={!size || !selection.inventory} onClick={add}>Thêm vào giỏ · {money((size?.priceCents||0)+tops.reduce((a,t)=>a+t.priceCents,0))}</button>
+<input type="checkbox" checked={tops.some(x=>x.id===t.id)} disabled={t.availableQuantity === 0} onChange={e=>setTops(v=>e.target.checked?[...v,t]:v.filter(x=>x.id!==t.id))}/>{t.name}<span>{t.availableQuantity === 0 ? 'Hết hàng' : '+' + money(t.priceCents)}</span>
+</label>)}<button className="primary full" disabled={!size || !canAdd(selection, size, tops)} onClick={add}>Thêm vào giỏ · {money((size?.priceCents||0)+tops.reduce((a,t)=>a+t.priceCents,0))}</button>
 </div>
 </div>}
 {((cartOpen&&!checkoutOpen)||auth)&&<div className="overlay" onClick={()=>{setCartOpen(false);
@@ -407,7 +425,7 @@ setAuth(null)}}>×</button>{auth?<>
 <b>{x.product.name}</b>
 <small>{x.size.name} · {x.toppings.map(t=>t.name).join(', ')||'Không topping'}</small>
 <div className="quantity">
-<button aria-label="Giảm số lượng" onClick={()=>setCart(c=>c.flatMap(v=>v.key!==x.key?[v]:v.quantity===1?[]:[{...v,quantity:v.quantity-1}]))}>−</button>{x.quantity}<button aria-label="Tăng số lượng" disabled={cartQuantity(x.product.id) >= x.product.inventory} onClick={()=>setCart(c=>c.map(v=>v.key===x.key?{...v,quantity:v.quantity+1}:v))}>+</button>
+<button aria-label="Giảm số lượng" onClick={()=>setCart(c=>c.flatMap(v=>v.key!==x.key?[v]:v.quantity===1?[]:[{...v,quantity:v.quantity-1}]))}>−</button>{x.quantity}<button aria-label="Tăng số lượng" disabled={!canAdd(x.product, x.size, x.toppings)} onClick={()=>setCart(c=>c.map(v=>v.key===x.key?{...v,quantity:v.quantity+1}:v))}>+</button>
 <button className="remove-line" onClick={() => setCart(current => current.filter(line => line.key !== x.key))}>Xóa</button>
 </div>
 </div>

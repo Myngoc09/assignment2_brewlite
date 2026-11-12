@@ -1,5 +1,6 @@
 import { PrismaClient,Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { seedInventory } from './seed-inventory';
 const db=new PrismaClient();
 async function main(){if (process.env.NODE_ENV !== 'production' && !process.argv.includes('--catalog-only')) {
 const passwordHash=await bcrypt.hash('BrewLite123!',10);for(const [email,name,role] of [['customer@brewlite.local','BrewLite Customer',Role.CUSTOMER],['staff@brewlite.local','BrewLite Staff',Role.STAFF]] as const)await db.user.upsert({where:{email},update:{},create:{email,name,role,passwordHash}});
@@ -29,5 +30,6 @@ for (const [slug, name, description, category, price] of menu) {
   });
 }
 await db.promotion.upsert({ where: { code: 'BREW10' }, update: {}, create: { code: 'BREW10', discountPercent: 10 } });
+await seedInventory(db, process.env.NODE_ENV === 'production' || process.argv.includes('--catalog-only'));
 }
 main().finally(() => db.$disconnect());

@@ -4,24 +4,26 @@ import { OrderStatus, Prisma, Promotion } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { CartDto, PayDto, StatusDto, statusTransitions } from './orders.dto';
 import { linePrice, orderDiscount } from './order-pricing';
+import { InventoryService } from './inventory.service';
 
 const unpaidStatuses: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED];
 
 @Injectable()
 export class OrdersService {
-  constructor(private db: PrismaService) {}
+  constructor(private readonly db: PrismaService, private readonly inventory: InventoryService) {}
 
   async create(userId: string, d: CartDto) {
     return this.db.$transaction(async (tx) => {
       let subtotal = 0;
       const lines: Array<Prisma.OrderItemCreateWithoutOrderInput & { productId: string }> = [];
+      const demand = new Map<string, number>();
 
       for (const line of d.items) {
         const product = await tx.product.findUnique({
           where: { id: line.productId },
           include: {
-            sizes: true,
-            toppings: true,
+            sizes: { include: { recipe: true } },
+            toppings: { include: { recipe: true } },
           },
         });
 
@@ -39,10 +41,15 @@ export class OrdersService {
           throw new BadRequestException('Invalid size or topping');
         }
 
-        if (product.inventory < line.quantity) {
+        const usesProductStock = size.recipe.length === 0;
+        if (usesProductStock && product.inventory < line.quantity) {
           throw new BadRequestException(
             `${product.name} is out of stock`,
           );
+        }
+
+        for (const { ingredientId, quantity } of [...size.recipe, ...toppings.flatMap(topping => topping.recipe)]) {
+          demand.set(ingredientId, (demand.get(ingredientId) ?? 0) + quantity * line.quantity);
         }
 
         const { unitPrice, lineTotal } = linePrice(
@@ -61,6 +68,7 @@ export class OrdersService {
           size: line.size,
           toppings: toppingNames,
           quantity: line.quantity,
+          usesProductStock,
           unitPriceCents: unitPrice,
           lineTotalCents: lineTotal,
         });
@@ -88,7 +96,8 @@ export class OrdersService {
       const discount = orderDiscount(subtotal, promotion?.discountPercent ?? 0);
 
       // Acquire stock locks in the same order across multi-product carts.
-      for (const line of [...lines].sort((a, b) => a.productId.localeCompare(b.productId))) {
+      const productStockLines = lines.filter(line => line.usesProductStock);
+      for (const line of productStockLines.sort((a, b) => a.productId.localeCompare(b.productId))) {
         const result = await tx.product.updateMany({
           where: {
             id: line.productId,
@@ -107,7 +116,7 @@ export class OrdersService {
         }
       }
 
-      return tx.order.create({
+      const order = await tx.order.create({
         data: {
           orderNumber: `BL-${randomUUID().toUpperCase()}`,
           userId,
@@ -124,6 +133,8 @@ export class OrdersService {
           items: true,
         },
       });
+      await this.inventory.reserve(tx, order.id, userId, demand);
+      return order;
     });
   }
 
@@ -255,12 +266,14 @@ export class OrdersService {
             data: { status, statusHistory: { create: { status, changedById: userId } } },
             include: { items: true },
           });
-          for (const item of [...cancelled.items].sort((a, b) => a.productId.localeCompare(b.productId))) {
+          const productStockItems = cancelled.items.filter(item => item.usesProductStock);
+          for (const item of productStockItems.sort((a, b) => a.productId.localeCompare(b.productId))) {
             await tx.product.update({
               where: { id: item.productId },
               data: { inventory: { increment: item.quantity } },
             });
           }
+          await this.inventory.release(tx, id, userId);
           return cancelled;
         });
       }
