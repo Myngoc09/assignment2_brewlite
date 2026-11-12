@@ -1,7 +1,64 @@
-import { Body,Controller,Post,UnauthorizedException,BadRequestException } from '@nestjs/common';
-import { IsEmail,IsOptional,IsString,MinLength } from 'class-validator';
+import { Body, Controller, Post, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from './prisma.service';
-class AuthDto{@IsEmail() email!:string;@IsString() @MinLength(8) password!:string;@IsOptional()@IsString() name?:string}
-@Controller('auth') export class AuthController{constructor(private db:PrismaService,private jwt:JwtService){}@Post('register')async register(@Body() d:AuthDto){if(!d.name)throw new BadRequestException('Name required');if(await this.db.user.findUnique({where:{email:d.email.toLowerCase()}}))throw new BadRequestException('Email already registered');return this.session(await this.db.user.create({data:{email:d.email.toLowerCase(),name:d.name,passwordHash:await bcrypt.hash(d.password,12)}}))}@Post('login')async login(@Body() d:AuthDto){const u=await this.db.user.findUnique({where:{email:d.email.toLowerCase()}});if(!u||!(await bcrypt.compare(d.password,u.passwordHash)))throw new UnauthorizedException('Email or password is incorrect');return this.session(u)}private session(u:any){const{passwordHash,...safe}=u;return{accessToken:this.jwt.sign({sub:u.id,email:u.email,role:u.role}),user:safe}}}
+
+class AuthDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly db: PrismaService, private readonly jwt: JwtService) {}
+
+  @Post('register')
+  async register(@Body() dto: AuthDto) {
+    const name = dto.name?.trim();
+    if (!name) {
+      throw new BadRequestException('Name required');
+    }
+
+    try {
+      const user = await this.db.user.create({
+        data: {
+          email: dto.email.toLowerCase(),
+          name,
+          passwordHash: await bcrypt.hash(dto.password, 12),
+        },
+      });
+      return this.session(user);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new BadRequestException('Email already registered');
+      }
+      throw error;
+    }
+  }
+
+  @Post('login')
+  async login(@Body() dto: AuthDto) {
+    const user = await this.db.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
+    return this.session(user);
+  }
+
+  private session({ passwordHash, ...user }: User) {
+    return {
+      accessToken: this.jwt.sign({ sub: user.id, email: user.email, role: user.role }),
+      user,
+    };
+  }
+}
