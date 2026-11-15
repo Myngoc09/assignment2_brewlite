@@ -1,0 +1,78 @@
+
+@startuml
+autonumber
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam BoxPadding 10
+skinparam linetype ortho
+
+actor "Khách hàng" as KH
+participant "UI" as UI
+participant "API" as API
+database "PostgreSQL" as DB
+
+KH -> UI: Mở trang menu
+activate UI
+
+UI -> API: GET /api/products
+activate API
+
+API -> DB: Truy vấn sản phẩm đang hoạt động
+activate DB
+DB --> API: Trả danh sách sản phẩm
+deactivate DB
+
+API -> API: Tính số lượng có thể phục vụ
+
+alt Tải dữ liệu thành công
+    API --> UI: 200 OK: Danh sách sản phẩm
+    deactivate API
+
+    UI --> KH: Hiển thị danh sách sản phẩm
+
+    opt Tìm kiếm sản phẩm
+        KH -> UI: Nhập từ khóa tìm kiếm
+        UI -> UI: Lọc sản phẩm theo tên
+        UI --> KH: Hiển thị kết quả tìm kiếm
+    end
+
+    opt Lọc theo danh mục
+        KH -> UI: Chọn danh mục
+        UI -> UI: Lọc sản phẩm theo danh mục
+        UI --> KH: Hiển thị kết quả lọc
+    end
+
+    opt Xem chi tiết sản phẩm
+        KH -> UI: Chọn sản phẩm
+        UI -> API: GET /api/products/{id}
+        activate API
+
+        API -> DB: Truy vấn sản phẩm theo id hoặc slug
+        activate DB
+        DB --> API: Trả thông tin sản phẩm
+        deactivate DB
+
+        alt Tìm thấy sản phẩm
+            API -> API: Tính số lượng có thể phục vụ
+            API --> UI: 200 OK: Thông tin chi tiết
+            deactivate API
+            UI --> KH: Hiển thị chi tiết sản phẩm
+        else Không tìm thấy sản phẩm
+            API --> UI: 404 Not Found
+            deactivate API
+            UI --> KH: Thông báo không tìm thấy sản phẩm
+        end
+    end
+
+else Tải dữ liệu thất bại
+    API --> UI: Trả lỗi HTTP
+    deactivate API
+    UI --> KH: Hiển thị thông báo lỗi và nút Thử lại
+end
+
+deactivate UI
+@enduml

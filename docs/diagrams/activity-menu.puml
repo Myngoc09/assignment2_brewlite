@@ -1,0 +1,91 @@
+
+@startuml
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam linetype ortho
+skinparam nodesep 25
+skinparam ranksep 25
+
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+
+|KHÁCH HÀNG|
+start
+:Mở trang menu;
+
+|HỆ THỐNG|
+:Gửi yêu cầu lấy danh sách sản phẩm;
+
+|API|
+:Truy vấn danh sách sản phẩm đang hoạt động;
+:Trả danh sách sản phẩm về hệ thống;
+
+|HỆ THỐNG|
+if (Tải dữ liệu thành công?) then (Có)
+
+    if (Danh sách có sản phẩm?) then (Có)
+        :Hiển thị danh sách sản phẩm;
+
+        |KHÁCH HÀNG|
+        repeat
+            switch (Chọn thao tác?)
+
+            case (Tìm kiếm)
+                :Nhập từ khóa tìm kiếm;
+
+                |HỆ THỐNG|
+                :Lọc sản phẩm theo tên;
+                :Hiển thị kết quả tìm kiếm;
+
+            case (Lọc danh mục)
+                |KHÁCH HÀNG|
+                :Chọn danh mục;
+
+                |HỆ THỐNG|
+                :Lọc sản phẩm theo danh mục;
+                :Hiển thị kết quả lọc;
+
+            case (Xem chi tiết)
+                |KHÁCH HÀNG|
+                :Chọn sản phẩm;
+
+                |HỆ THỐNG|
+                :Gửi yêu cầu lấy chi tiết sản phẩm;
+
+                |API|
+                :Truy vấn sản phẩm theo id hoặc slug;
+
+                |HỆ THỐNG|
+                if (Tìm thấy sản phẩm?) then (Có)
+                    :Hiển thị chi tiết sản phẩm;
+                else (Không)
+                    :Thông báo không tìm thấy sản phẩm;
+                endif
+
+            case (Kết thúc)
+                stop
+
+            endswitch
+        repeat while (Tiếp tục?) is (Có)
+
+        stop
+
+    else (Không)
+        :Hiển thị danh sách trống;
+        stop
+    endif
+
+else (Không)
+    :Hiển thị thông báo lỗi tải dữ liệu;
+    :Hiển thị nút Thử lại;
+    stop
+endif
+
+@enduml
