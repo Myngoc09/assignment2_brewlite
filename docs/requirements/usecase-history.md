@@ -6,19 +6,15 @@ flowchart LR
 
     subgraph BrewLite ["BrewLite - Hệ thống đặt đồ uống"]
         UC_Main(["Xem lịch sử đơn hàng"])
-        UC_Filter(["Lọc / Tìm kiếm đơn hàng"])
+        UC_Filter(["Tìm kiếm đơn hàng"])
         UC_Detail(["Xem chi tiết đơn hàng"])
-        UC_Reorder(["Đặt lại đơn cũ (Reorder)"])
-        UC_Cancel(["Hủy đơn đang chờ"])
         UC_Auth(["Đăng nhập hệ thống"])
     end
 
     Customer --> UC_Main
-    UC_Main -.->|"&lt;&lt;include&gt;&gt;"| UC_Auth
-    UC_Filter -.->|"&lt;&lt;extend&gt;&gt;"| UC_Main
-    UC_Detail -.->|"&lt;&lt;extend&gt;&gt;"| UC_Main
-    UC_Reorder -.->|"&lt;&lt;extend&gt;&gt;"| UC_Detail
-    UC_Cancel -.->|"&lt;&lt;extend&gt;&gt;"| UC_Detail
+    UC_Main -. include .-> UC_Auth
+    UC_Filter -. extend .-> UC_Main
+    UC_Detail <-. extend .-UC_Main
 ```
 
 - **Actor chính:** khách hàng. 
