@@ -2,11 +2,23 @@
 
 ```mermaid
 flowchart LR
-    Customer(["👤 Khách hàng"])
+    Customer(["Khách hàng"])
+
     subgraph BrewLite ["BrewLite - Hệ thống đặt đồ uống"]
-        UC_History(["Xem lịch sử đơn hàng"])
+        UC_Main(["Xem lịch sử đơn hàng"])
+        UC_Filter(["Lọc / Tìm kiếm đơn hàng"])
+        UC_Detail(["Xem chi tiết đơn hàng"])
+        UC_Reorder(["Đặt lại đơn cũ (Reorder)"])
+        UC_Cancel(["Hủy đơn đang chờ"])
+        UC_Auth(["Đăng nhập hệ thống"])
     end
-    Customer --> UC_History
+
+    Customer --> UC_Main
+    UC_Main -.->|"&lt;&lt;include&gt;&gt;"| UC_Auth
+    UC_Filter -.->|"&lt;&lt;extend&gt;&gt;"| UC_Main
+    UC_Detail -.->|"&lt;&lt;extend&gt;&gt;"| UC_Main
+    UC_Reorder -.->|"&lt;&lt;extend&gt;&gt;"| UC_Detail
+    UC_Cancel -.->|"&lt;&lt;extend&gt;&gt;"| UC_Detail
 ```
 
 - **Actor chính:** khách hàng. 
