@@ -1,13 +1,13 @@
 # 1.4 UC-0 Lịch sử đơn hàng
 
-@startuml BrewLite-UseCase-XemLichSuDonHang
-left to right direction
-actor "Khách hàng" as Customer
-rectangle "BrewLite - Hệ thống đặt đồ uống" {
-    usecase "Xem lịch sử đơn hàng" as UC_History
-}
-Customer --> UC_History
-@enduml
+```mermaid
+flowchart LR
+    Customer(["👤 Khách hàng"])
+    subgraph BrewLite ["BrewLite - Hệ thống đặt đồ uống"]
+        UC_History(["Xem lịch sử đơn hàng"])
+    end
+    Customer --> UC_History
+```
 
 - **Actor chính:** khách hàng. 
 - **Mục tiêu:** cho phép khách hàng xem quá trình trạng thái đơn hàng 
