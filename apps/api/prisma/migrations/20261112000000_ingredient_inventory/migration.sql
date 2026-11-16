@@ -1,4 +1,3 @@
-Get-ChildItem -Path . -Filter "*plantuml*.jar" -Recurse
 -- CreateEnum
 CREATE TYPE "IngredientUnit" AS ENUM ('ML', 'G', 'PIECE');
 
