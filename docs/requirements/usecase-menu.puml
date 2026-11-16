@@ -1,0 +1,28 @@
+
+@startuml
+left to right direction
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam linetype spline
+skinparam ArrowThickness 1.5
+skinparam shadowing false
+
+actor "Khách hàng" as Customer
+
+rectangle {
+
+    usecase "Xem danh sách sản phẩm" as UC_View
+    usecase "Tìm kiếm sản phẩm" as UC_Search
+    usecase "Lọc sản phẩm theo danh mục" as UC_Filter
+    usecase "Xem chi tiết sản phẩm" as UC_Detail
+
+}
+
+Customer --> UC_View
+Customer --> UC_Search
+Customer --> UC_Filter
+Customer --> UC_Detail
+
+@enduml

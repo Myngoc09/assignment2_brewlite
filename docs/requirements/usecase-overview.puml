@@ -1,0 +1,59 @@
+
+@startuml
+left to right direction
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam linetype curved
+skinparam ArrowThickness 1.5
+skinparam shadowing false
+
+actor "Khách hàng" as Customer
+actor "Nhân viên" as Staff
+actor "Quản lý cửa hàng" as Manager
+actor "Payment Simulator" as Payment
+
+Manager --|> Staff
+
+rectangle  {
+
+    usecase "Xem menu" as UC_Menu
+    usecase "Xem chi tiết sản phẩm" as UC_Detail
+    usecase "Tùy chỉnh sản phẩm\n(size, topping)" as UC_Customize
+    usecase "Quản lý giỏ hàng" as UC_Cart
+    usecase "Đăng ký / Đăng nhập" as UC_Auth
+    usecase "Đặt hàng" as UC_Order
+    usecase "Thanh toán đơn hàng" as UC_Payment
+    usecase "Xem lịch sử đơn hàng" as UC_History
+    usecase "Theo dõi trạng thái đơn hàng" as UC_Tracking
+    usecase "Hủy đơn hàng" as UC_Cancel
+    usecase "Cập nhật trạng thái đơn hàng" as UC_UpdateStatus
+}
+
+Customer --> UC_Menu
+Customer --> UC_Detail
+Customer --> UC_Customize
+Customer --> UC_Cart
+Customer --> UC_Auth
+Customer --> UC_Order
+Customer --> UC_Payment
+Customer --> UC_History
+Customer --> UC_Tracking
+Customer --> UC_Cancel
+
+Staff --> UC_UpdateStatus
+Payment --> UC_Payment
+
+note right of UC_Order
+  Điều kiện:
+  Khách hàng đã đăng nhập.
+end note
+
+note right of UC_Cancel
+  Chỉ được hủy khi đơn
+  ở trạng thái PENDING
+  hoặc PAYMENT_FAILED.
+end note
+
+@enduml

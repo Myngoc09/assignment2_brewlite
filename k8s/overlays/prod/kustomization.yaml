@@ -6,7 +6,7 @@ resources:
 images:
   - name: brewlite-api
     newName: ghcr.io/myngoc09/assignment2_brewlite/api
-    newTag: 93062214dd2e4fb0dfa07a9e3c599134756391c5
+    newTag: bba59f99f9cd0fe58ce076d904aaac9cd68b15ae
   - name: brewlite-web
     newName: ghcr.io/myngoc09/assignment2_brewlite/web
-    newTag: 93062214dd2e4fb0dfa07a9e3c599134756391c5
+    newTag: bba59f99f9cd0fe58ce076d904aaac9cd68b15ae
