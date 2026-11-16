@@ -1,0 +1,295 @@
+\documentclass[a4paper]{article}
+\usepackage{vntex}
+\usepackage[utf8]{inputenc}
+%\usepackage[english,vietnam]{babel}
+%\usepackage[utf8]{inputenc}
+
+%\usepackage[utf8]{inputenc}
+%\usepackage[francais]{babel}
+\usepackage{a4wide,amssymb,epsfig,latexsym,multicol,array,hhline,fancyhdr}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{lastpage}
+
+\usepackage{enumerate}
+\usepackage{color}
+\usepackage{graphicx}							% Standard graphics package
+\usepackage{array}
+\usepackage{tabularx, caption}
+\usepackage{multirow}
+
+\usepackage{multicol}
+\usepackage{rotating}
+\usepackage{graphics}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{epsfig}
+\usepackage{tikz}
+\usepackage{listings}
+
+\usepackage{hyperref}
+\hypersetup{urlcolor=blue,linkcolor=black,citecolor=black,colorlinks=true} 
+%\usepackage{pstcol} 								% PSTricks with the standard color package
+
+\newtheorem{theorem}{{\bf Định lý}}
+\newtheorem{property}{{\bf Tính chất}}
+\newtheorem{proposition}{{\bf Mệnh đề}}
+\newtheorem{corollary}[proposition]{{\bf Hệ quả}}
+\newtheorem{lemma}[proposition]{{\bf Bổ đề}}
+
+\everymath{\color{blue}}
+%\usepackage{fancyhdr}
+\setlength{\headheight}{40pt}
+\pagestyle{fancy}
+\fancyhead{} % clear all header fields
+\fancyhead[L]{
+ \begin{tabular}{rl}
+    \begin{picture}(25,15)(0,0)
+    \put(0,-8){\includegraphics[width=8mm, height=8mm]{logoITSGUsmall.png}}
+    %\put(0,-8){\epsfig{width=10mm,figure=hcmut.eps}}
+   \end{picture}&
+	%\includegraphics[width=8mm, height=8mm]{hcmut.png} & %
+	\begin{tabular}{l}
+		\textbf{\bf \ttfamily Trường Đại học Sài Gòn}\\
+		\textbf{\bf \ttfamily Khoa Công Nghệ Thông Tin}
+	\end{tabular} 	
+ \end{tabular}
+}
+\fancyhead[R]{
+	\begin{tabular}{l}
+		\tiny \bf \\
+		\tiny \bf 
+	\end{tabular}  }
+\fancyfoot{} % clear all footer fields
+\fancyfoot[L]{\scriptsize \ttfamily Công nghệ phần mềm - Assignment 2 - BrewLite}
+\fancyfoot[R]{\scriptsize \ttfamily Trang {\thepage}/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+
+%%%
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{3}
+\makeatletter
+\newcounter {subsubsubsection}[subsubsection]
+\renewcommand\thesubsubsubsection{\thesubsubsection .\@alph\c@subsubsubsection}
+\newcommand\subsubsubsection{\@startsection{subsubsubsection}{4}{\z@}%
+                                     {-3.25ex\@plus -1ex \@minus -.2ex}%
+                                     {1.5ex \@plus .2ex}%
+                                     {\normalfont\normalsize\bfseries}}
+\newcommand*\l@subsubsubsection{\@dottedtocline{3}{10.0em}{4.1em}}
+\newcommand*{\subsubsubsectionmark}[1]{}
+\makeatother
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+	language=Matlab,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=none,
+	numberstyle=\tiny\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3,
+	numbers=left,
+	stepnumber=1,
+	numbersep=1pt,    
+	firstnumber=1,
+	numberfirstline=true
+}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+TRƯỜNG ĐẠI HỌC SÀI GÒN \\
+KHOA CÔNG NGHỆ THÔNG TIN
+\end{center}
+\vspace{1cm}
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[width=3cm]{logoITSGU.png}
+\end{center}
+\end{figure}
+
+\vspace{1cm}
+
+
+\begin{center}
+\begin{tabular}{c}
+	\multicolumn{1}{l}{\textbf{{\Large CÔNG NGHỆ PHẦN MỀM}}}\\
+	~~\\
+	\hline
+	\\
+	\multicolumn{1}{l}{\textbf{{\Large BÁO CÁO ASSIGNMENT 2}}}\\
+	\\
+	
+	\textbf{{\Huge BrewLite}}\\
+\textbf{{\Large Ứng dụng đặt đồ uống}}\\
+	\\
+	\hline
+\end{tabular}
+\end{center}
+
+\vspace{3cm}
+
+\begin{table}[h]
+\begin{tabular}{rrl}
+\hspace{5 cm} & GVHD: &[Họ tên giảng viên]\\
+& SV: & [Họ tên sinh viên] - [MSSV]\\
+& Lớp: & [Mã lớp] \\
+& Nhóm: & [Số nhóm] \\
+% & & SV3 - MSSV \\
+% & & SV4 - MSSV\\
+\end{tabular}
+\vspace{1.5 cm}
+\end{table}
+
+\begin{center}
+
+{\footnotesize TP. HỒ CHÍ MINH, THÁNG [MM]/[YYYY]}
+\end{center}
+\end{titlepage}
+
+
+\thispagestyle{empty}
+
+\newpage
+\renewcommand{\contentsname}{Mục lục}
+\tableofcontents
+\clearpage
+
+
+\setlength{\parskip}{5pt}
+\setcounter{section}{0}
+\renewcommand{\thesection}{Task \arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{0em}{4.2em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{1.5em}{2.7em}}
+\makeatother
+
+\section{Khai thác và đặc tả yêu cầu}
+
+\subsection{Bối cảnh, stakeholder và phạm vi}
+Nhóm xác định ba vấn đề nghiệp vụ cần xử lý trong luồng đặt đồ uống: khách cần biết giá sau khi chọn size và topping, quầy cần nhận đơn đủ thông tin để pha chế, và yêu cầu gửi lại khi mạng chập chờn cần tránh ghi nhận thanh toán trùng.
+
+\begin{tabularx}{\linewidth}{@{}p{.31\linewidth}X@{}}
+\toprule
+\textbf{Stakeholder} & \textbf{Kỳ vọng}\\
+\midrule
+Khách hàng & Biết tổng tiền, đặt món trên điện thoại và theo dõi tiến độ.\\
+Nhân viên quầy & Nhận đúng size, topping, số lượng và cập nhật tiến độ pha chế.\\
+Quản lý cửa hàng & Theo dõi tồn nguyên liệu, quyền truy cập và lịch sử biến động.\\
+Giảng viên nghiệm thu & Đối chiếu yêu cầu với sơ đồ, mã nguồn, kiểm thử và demo.\\
+Nhóm phát triển & Chia phạm vi thành hai sprint và kiểm tra thay đổi trước khi merge.\\
+Đơn vị thanh toán mô phỏng & Trả kết quả nhất quán khi nhận lại cùng khóa và mã đơn.\\
+\bottomrule
+\end{tabularx}
+
+MVP gồm menu, tùy chỉnh đồ uống, giỏ, xác thực, tạo đơn, thanh toán mô phỏng và theo dõi đơn. Bản hiện tại còn có ưu đãi, tích điểm và tồn kho nguyên liệu. Giao hàng, POS, thanh toán thật và quản lý chuỗi cửa hàng nằm ngoài phạm vi. Giả định ban đầu là một cửa hàng, tiền tính theo VND nguyên và menu có dữ liệu seed. Rủi ro trọng tâm là tranh tồn và thanh toán lặp. Nhóm xử lý bằng cập nhật tồn có điều kiện trong giao dịch và khóa idempotency. Tạo phẩm tại \path{docs/requirements/context-and-scope.md}.
+
+\subsection{Yêu cầu chức năng và phi chức năng}
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+\textbf{Mã} & \textbf{Ưu tiên} & \textbf{Tiêu chí chấp nhận}\\
+\midrule
+FR-01--02 & Must & Trả các món đang bán và tùy chọn. Mã món không tồn tại trả HTTP 404.\\
+FR-03--04 & Must & Giỏ cập nhật tổng theo size, topping và số lượng. Tài khoản hợp lệ nhận JWT.\\
+FR-05--06 & Must & Máy chủ kiểm tra giá và tồn trước khi ghi đơn. Cùng đơn và khóa trả cùng giao dịch.\\
+FR-07--08 & Must & Khách chỉ xem đơn của mình. Nhân viên cập nhật theo thứ tự trạng thái cho phép.\\
+FR-09 & Should & Mã ưu đãi đang hoạt động và còn hạn được áp dụng đúng tỷ lệ.\\
+FR-10 & Could & Chỉ ghi điểm sau khi thanh toán thành công.\\
+FR-11 & Won't & Giao diện CRUD thực đơn nằm ngoài MVP.\\
+NFR-01 & Should & Mục tiêu tải menu demo dưới 1,5 giây ở môi trường local.\\
+NFR-02--04 & Must & Xác thực JWT, băm mật khẩu, kiểm tra DB qua health endpoint và hỗ trợ giao diện từ 360 px.\\
+NFR-05--08 & Must & Tính tiền theo VND nguyên, cập nhật trong transaction, tái tạo DB từ migration/seed, có CI/CD và thanh toán chỉ ở chế độ mô phỏng.\\
+\bottomrule
+\end{tabularx}
+
+SRS và sơ đồ use case tổng quát nằm tại \path{docs/requirements/srs.md}. Ca sử dụng bao gồm xem menu, tùy chỉnh, xác thực, đặt và thanh toán, theo dõi đơn và cập nhật trạng thái.
+
+\subsection{Use case đặt và thanh toán đơn hàng}
+UC-04 bắt đầu khi khách xác nhận đặt hàng. Tiền điều kiện là giỏ có món và khách có JWT hợp lệ. Giao diện gọi \path{POST /api/orders}. API kiểm tra tùy chọn, tính lại giá, áp dụng ưu đãi hợp lệ và giữ tồn trong cùng giao dịch tạo đơn. Đơn mới ở trạng thái \texttt{PENDING}. Sau đó, giao diện gọi \path{POST /api/payments} với mã đơn, ví hoặc thẻ mô phỏng và \path{Idempotency-Key}. Nếu thành công, đơn chuyển sang \texttt{PAID}, lịch sử và điểm được ghi, giao diện hiển thị mã đơn.
+
+Với JWT thiếu hoặc sai, API trả 401. Khi giỏ sai hoặc thiếu tồn, API từ chối tạo đơn và bảo toàn tồn đã có. Khi thanh toán thất bại, đơn chuyển sang \path{PAYMENT_FAILED} và giỏ được giữ để thử lại. Gửi lại cùng khóa trả giao dịch cũ. Một lần thử thanh toán mới dùng khóa mới. Tạo phẩm tại \path{docs/requirements/use-case-checkout.md} và \path{docs/diagrams/usecase-checkout.svg}. Truy vết đến FR-03--07, FR-09--10, NFR-02, NFR-05 và NFR-08.
+
+\section{Mô hình hóa hệ thống}
+
+\subsection{Activity diagram}
+Sơ đồ \path{docs/diagrams/activity-overview.svg} thể hiện luồng từ xem menu đến theo dõi đơn, gồm nhánh hết hàng, chưa đăng nhập và thử lại sau lỗi thanh toán. Sơ đồ \path{docs/diagrams/activity-checkout.svg} chi tiết hóa bước xác thực và tạo đơn. Các sơ đồ hiện còn chứa bước nhập thông tin giao hàng từ bản thiết kế cũ. Sơ đồ tổng quát cũng đặt bước cập nhật tồn sau thanh toán, trong khi API giữ tồn ngay trong giao dịch tạo đơn.
+
+\subsection{Sequence diagram}
+Tệp \path{docs/diagrams/sequence-checkout.puml} và bản SVG cùng tên đang lệch nhau. Tệp nguồn hiện mô tả đặt đơn có thông tin giao hàng, dùng một lifeline chung cho hệ thống và dừng sau khi tạo đơn. Trình tự cần thể hiện theo hiện thực là khách gửi yêu cầu qua Next.js đến NestJS, API xác thực JWT và tạo đơn cùng với giữ tồn trong PostgreSQL, sau đó gọi thanh toán mô phỏng. Nhánh thanh toán phải thể hiện kết quả thành công, thất bại và phát lại cùng khóa idempotency. Việc đồng bộ tệp nguồn và bản kết xuất còn cần thực hiện trước khi nghiệm thu Task 2.2.
+
+\subsection{Class diagram}
+Sơ đồ \path{docs/diagrams/class-domain.svg} biểu diễn một \texttt{User} có nhiều \texttt{Order}, mỗi đơn có nhiều \texttt{OrderItem} và các lần \texttt{Payment}. \texttt{Product} liên kết với size và topping. Đơn có thể gắn một \texttt{Promotion} và các bản ghi \texttt{LoyaltyTransaction}. Các enum mô tả trạng thái đơn và trạng thái thanh toán. Đối chiếu các quan hệ với mô hình thực thi tại \path{apps/api/prisma/schema.prisma}. Phần công thức và biến động nguyên liệu được hiện thực trong schema và module Inventory.
+
+\section{Thiết kế kiến trúc}
+
+\subsection{Phương pháp và quyết định kiến trúc}
+Nhóm sử dụng kiến trúc phân lớp. Next.js/PWA xử lý trình bày và proxy yêu cầu API. NestJS tách nghiệp vụ theo các module Auth, Catalog, Orders và Inventory. Prisma quản lý schema, migration và giao dịch PostgreSQL. Cấu hình runtime lấy từ biến môi trường, ứng dụng ghi log ra stdout và endpoint \path{/api/health} kiểm tra DB.
+
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+\textbf{ADR} & \textbf{Quyết định và đánh đổi}\\
+\midrule
+001 & Monorepo cho phép sửa giao diện, API và tài liệu trong cùng PR. Kích thước cây phụ thuộc tăng khi thêm workspace.\\
+002 & PostgreSQL và Prisma hỗ trợ migration có phiên bản và giao dịch đồng bộ đơn với tồn kho. Thay đổi schema cần kiểm tra tương thích trước khi phát hành.\\
+003 & Ví và thẻ mô phỏng giúp tái tạo ca thành công và thất bại mà không thu thông tin thẻ. Hành vi gateway thật nằm ngoài phạm vi kiểm thử.\\
+004 & GitOps gắn bản triển khai với SHA và cho phép khôi phục cấu hình từ Git. Cụm một node cần kế hoạch sao lưu PostgreSQL ngoài VM.\\
+\bottomrule
+\end{tabularx}
+
+\subsection{Deployment diagram}
+Tạo phẩm tại \path{docs/diagrams/deployment-production.puml} và bản SVG cùng tên. Sơ đồ phân ranh giới giữa Compose cục bộ, GitHub Actions/GHCR và K3s trên Oracle Cloud. Trong cấu hình production, lưu lượng HTTPS vào qua lớp ingress hoặc tunnel được cấu hình. Next.js lắng nghe cổng 3000 và chuyển tiếp API nội bộ đến NestJS cổng 3001. PostgreSQL dùng cổng 5432, Service nội bộ và PVC. Argo CD theo dõi overlay production để đồng bộ image web và API. Manifest triển khai nằm trong \path{k8s/}.
+
+\section{Triển khai Sprint 1}
+
+\subsection{Thiết lập repository}
+Kho mã \url{https://github.com/Myngoc09/assignment2_brewlite} tổ chức workspace tại \path{apps/web}, \path{apps/api} và tài liệu trong \path{docs}. \path{README.md}, \path{.gitignore} và \path{.env.example} phục vụ cài đặt và quản lý cấu hình. Backlog hai sprint và Definition of Done ở \path{docs/project/backlog.md}. Quy trình quy định nhánh \path{feat/*} hoặc \path{fix/*}, PR vào \texttt{main}, review, kiểm tra CI và squash merge.
+
+\subsection{Quản lý tài liệu}
+Đặc tả được quản lý trong \path{docs/requirements}, sơ đồ và bản kết xuất trong \path{docs/diagrams}, ADR trong \path{docs/architecture/adr}. Ma trận tại \path{docs/traceability-matrix.md} nối yêu cầu với ca sử dụng, thiết kế, mã và kiểm thử. Ví dụ, FR-01 nối với UC-01, API \path{GET /api/products} và các bộ API E2E, Playwright.
+
+\subsection{MVP Sprint 1}
+NestJS cung cấp \path{GET /api/products} và \path{GET /api/products/:id}. Giao diện Next.js hiển thị menu và xử lý trạng thái đang tải, danh sách rỗng và lỗi truy vấn. Prisma seed cung cấp dữ liệu thử. Bộ \path{products.controller.spec.ts} kiểm tra danh sách món đang bán, tùy chọn tương ứng và HTTP 404 với món không khả dụng.
+
+\subsection{Continuous Integration}
+Workflow \path{.github/workflows/ci.yml} chạy khi mở hoặc cập nhật PR. Pipeline cài phụ thuộc, chạy lint và unit test, kiểm tra API và trình duyệt, build ứng dụng rồi smoke test overlay Kubernetes. Kết quả local đã xác nhận lint và 4/4 unit test. Build web dừng ở bước tạo trang tĩnh do lỗi quyền ghi vào \path{apps/web/.next}. Link PR, log CI thành công hoặc phát hiện lỗi và trạng thái bắt buộc của các check trên nhánh \texttt{main} cần được xác minh trên GitHub.
+
+\section{Triển khai Sprint 2 và bàn giao}
+
+\subsection{Hoàn thiện MVP}
+Sprint 2 bổ sung chọn size và topping, tính tổng giỏ, đăng ký và đăng nhập JWT, kiểm tra đơn tại máy chủ, thanh toán mô phỏng, xác nhận và theo dõi trạng thái. Khách có thể hủy đơn đang chờ hoặc thanh toán thất bại. Nhân viên cập nhật \texttt{PAID} đến \texttt{PREPARING}, \texttt{READY} và \texttt{COMPLETED}. Cập nhật sai thứ tự trả HTTP 409. Phần tồn kho cộng nhu cầu từ công thức size và topping, giữ tồn trong giao dịch và hoàn lại lượng đã giữ khi hủy hợp lệ.
+
+\subsection{Tích hợp và kiểm thử}
+\begin{tabularx}{\linewidth}{@{}p{.22\linewidth}X@{}}
+\toprule
+\textbf{Kiểm thử} & \textbf{Minh chứng và kết quả}\\
+\midrule
+Jest unit & 4/4 ca đạt. Kiểm tra danh mục, món không khả dụng, tính giá theo số lượng và làm tròn phần giảm giá.\\
+API E2E & \path{apps/api/test/app.e2e-spec.ts} gồm thiếu tồn, thanh toán lỗi và thử lại, gửi đồng thời, hoàn nguyên liệu và chuyển trạng thái. Chưa chạy trong đợt xác nhận này.\\
+Playwright & \path{tests/browser/checkout.spec.ts} kiểm tra luồng mua trên màn hình di động, giỏ sau lỗi thanh toán, xác nhận và lịch sử. Chưa chạy trong đợt xác nhận này.\\
+\bottomrule
+\end{tabularx}
+
+\path{docker-compose.yml} khởi động web, API và PostgreSQL. Migration và seed tái tạo DB. Hướng dẫn chạy bộ kiểm thử nằm trong \path{tests/README.md}. Health endpoint mặc định ở \url{http://localhost:3001/api/health}.
+
+\subsection{Continuous Delivery và Deployment}
+Workflow \path{.github/workflows/cd.yml} gọi lại CI khi push vào \texttt{main}, build image web và API, đẩy tag theo commit SHA lên GHCR rồi cập nhật hai tag trong overlay trên nhánh \texttt{production}. Argo CD đồng bộ overlay. Init container của API chạy migration trước khi ứng dụng khởi động. Job smoke qua HTTPS kiểm tra bản triển khai khi URL đã được cấu hình. Khi cần rollback, khôi phục overlay về SHA đã chạy ổn và kiểm tra tương thích schema theo \path{docs/deployment.md}.
+
+\subsection{Triển khai và bàn giao}
+README và \path{docs/deployment.md} ghi các bước chạy local, kiểm thử, triển khai và rollback. Tài liệu hướng dẫn cấu hình HTTPS, health check và giữ PostgreSQL trong mạng nội bộ. URL frontend production, API và health cần được xác nhận từ môi trường thực tế trước khi nộp. Link release, release notes, video demo và biên bản Sprint Review/Retrospective cũng cần được bổ sung khi có minh chứng. Hai mẫu biên bản hiện có tại \path{docs/project/sprint-review.md} và \path{docs/project/retrospective.md}.
+
+\end{document}
