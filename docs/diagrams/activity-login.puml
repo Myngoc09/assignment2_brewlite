@@ -1,0 +1,80 @@
+@startuml
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam linetype ortho
+skinparam nodesep 25
+skinparam ranksep 25
+
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+
+|KHÁCH HÀNG|
+start
+:Bấm Đăng nhập trên thanh điều hướng;
+:Nhập email và mật khẩu;
+:Bấm Đăng nhập;
+
+|HỆ THỐNG|
+if (Form hợp lệ?\n(đủ trường, email đúng định dạng,\nmật khẩu >= 8 ký tự)) then (Không)
+    :Trình duyệt báo lỗi trên form;
+    |KHÁCH HÀNG|
+    :Chỉnh sửa thông tin;
+    stop
+else (Có)
+endif
+
+:Gửi yêu cầu đăng nhập đến API;
+
+|API|
+:Kiểm tra dữ liệu (DTO);
+
+if (Dữ liệu hợp lệ?) then (Không)
+    |HỆ THỐNG|
+    :Hiển thị thông báo lỗi;
+    stop
+else (Có)
+endif
+
+|API|
+:Chuẩn hóa email về chữ thường;
+:Tìm người dùng theo email;
+
+if (Tìm thấy người dùng?) then (Không)
+    |HỆ THỐNG|
+    :Hiển thị thông báo\n"Email or password is incorrect";
+    stop
+else (Có)
+endif
+
+|API|
+:So khớp mật khẩu với mật khẩu băm (bcrypt);
+
+if (Mật khẩu đúng?) then (Không)
+    |HỆ THỐNG|
+    :Hiển thị thông báo\n"Email or password is incorrect";
+    stop
+else (Có)
+endif
+
+|API|
+:Tạo JWT (sub, email, role);
+:Trả accessToken và thông tin người dùng\n(không gồm mật khẩu);
+
+|HỆ THỐNG|
+:Lưu token và thông tin người dùng\nvào localStorage;
+:Cập nhật trạng thái đã đăng nhập;
+:Đóng form đăng nhập;
+:Hiển thị lời chào "Xin chào <tên>";
+
+|KHÁCH HÀNG|
+:Nhận thông báo đăng nhập thành công;
+stop
+
+@enduml

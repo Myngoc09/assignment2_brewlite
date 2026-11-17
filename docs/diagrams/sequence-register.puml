@@ -1,0 +1,64 @@
+
+@startuml
+autonumber
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam BoxPadding 10
+skinparam linetype ortho
+
+actor "Khách hàng" as KH
+participant "UI" as UI
+participant "API" as API
+database "PostgreSQL" as DB
+
+KH -> UI: Chọn Đăng ký, nhập họ tên, email, mật khẩu
+activate UI
+
+UI -> UI: Kiểm tra form (đủ trường, email, mật khẩu >= 8 ký tự)
+
+UI -> API: POST /api/auth/register {name, email, password}
+activate API
+
+API -> API: Kiểm tra DTO (email, mật khẩu >= 8 ký tự)
+
+alt Dữ liệu không hợp lệ
+    API --> UI: 400 Bad Request
+    deactivate API
+    UI --> KH: Hiển thị thông báo lỗi
+else Dữ liệu hợp lệ
+    API -> API: Cắt khoảng trắng họ tên
+
+    alt Họ tên rỗng
+        API --> UI: 400 Bad Request: Name required
+        UI --> KH: Hiển thị thông báo lỗi
+    else Họ tên hợp lệ
+        API -> API: Chuẩn hóa email về chữ thường
+        API -> API: Băm mật khẩu bằng bcrypt (12 vòng)
+
+        API -> DB: INSERT User (email, name, passwordHash, role = CUSTOMER)
+        activate DB
+
+        alt Email đã tồn tại (P2002)
+            DB --> API: Lỗi unique email
+            API --> UI: 400 Bad Request: Email already registered
+            UI --> KH: Thông báo email đã được đăng ký
+        else Tạo người dùng thành công
+            DB --> API: Trả User
+            deactivate DB
+
+            API -> API: Ký JWT (sub, email, role)
+            API --> UI: 201 Created: {accessToken, user}
+            deactivate API
+
+            UI -> UI: Lưu token và user vào localStorage
+            UI --> KH: Đóng form, hiển thị "Xin chào <tên>"
+        end
+    end
+end
+
+deactivate UI
+@enduml
