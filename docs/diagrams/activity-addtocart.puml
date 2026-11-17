@@ -1,0 +1,71 @@
+@startuml
+title ACTIVITY DIAGRAM - THÊM VÀO GIỎ HÀNG
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+skinparam partition {
+    BackgroundColor #F8F9F9
+    BorderColor #566573
+}
+
+|KHÁCH HÀNG|
+start
+:Chọn một sản phẩm trong menu;
+
+|HỆ THỐNG|
+:Gửi yêu cầu GET /api/products/{id};
+
+|API|
+:Truy vấn sản phẩm theo id hoặc slug;
+:Tính số lượng còn lại;
+
+|HỆ THỐNG|
+if (Tải chi tiết thành công?) then (Không)
+    :Hiển thị thông báo lỗi;
+    stop
+else (Có)
+endif
+
+:Hiển thị chi tiết sản phẩm;
+:Chọn sẵn size mặc định\n(M hoặc size còn hàng đầu tiên)\nvà đặt danh sách topping về rỗng;
+
+|KHÁCH HÀNG|
+:Chọn size và topping (nếu có)\n(UC-03);
+
+|KHÁCH HÀNG|
+:Bấm "Thêm vào giỏ";
+
+|HỆ THỐNG|
+:Kiểm tra còn đủ hàng cho size đã chọn\nvà từng topping đã chọn;
+
+if (Còn đủ hàng?) then (Không)
+    :Hiển thị "Số lượng trong giỏ đã bằng\nsố lượng còn lại";
+    stop
+else (Có)
+endif
+
+:Tạo khóa dòng = sản phẩm + size\n+ các topping đã chọn (sắp xếp theo id);
+
+if (Khóa đã có trong giỏ?\n(cùng sản phẩm, size, topping)) then (Có)
+    :Tăng số lượng của dòng đó thêm 1;
+else (Không)
+    :Thêm dòng mới vào giỏ với số lượng 1;
+endif
+
+:Cập nhật tổng tiền và số món trên nút Giỏ hàng;
+:Đóng cửa sổ chi tiết;
+:Hiển thị "Đã thêm vào giỏ hàng";
+
+|KHÁCH HÀNG|
+:Thấy thông báo và số món trong giỏ tăng lên;
+stop
+
+@enduml

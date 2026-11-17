@@ -1,0 +1,74 @@
+
+@startuml
+title UC-03: CHỌN TÙY CHỌN SẢN PHẨM
+
+autonumber
+
+actor "Khách hàng" as Customer
+participant "Giao diện\nNext.js" as UI
+participant "ProductsController\n(NestJS)" as API
+database "PostgreSQL" as DB
+
+== Xem chi tiết sản phẩm ==
+
+Customer -> UI: Chọn sản phẩm
+activate UI
+
+UI -> API: GET /api/products/{id}
+activate API
+
+API -> DB: Tìm sản phẩm đang hoạt động\nvà lấy size, topping, recipe
+activate DB
+
+DB --> API: Trả dữ liệu sản phẩm
+deactivate DB
+
+alt Không tìm thấy sản phẩm
+    API --> UI: 404 Not Found
+    UI --> Customer: Hiển thị thông báo lỗi
+else Tìm thấy sản phẩm
+    API -> API: Tính availableQuantity\ncho từng size và topping
+    API --> UI: 200 OK - Product details
+    deactivate API
+
+    UI -> UI: Kiểm tra các size còn hàng
+
+    alt Không có size khả dụng
+        UI --> Customer: Hiển thị chi tiết, vô hiệu hóa tất cả nút size\n(không chọn sẵn size nào)
+    else Có size khả dụng
+        UI -> UI: Ưu tiên size M nếu còn hàng,\nngược lại chọn size còn hàng đầu tiên
+        UI --> Customer: Hiển thị chi tiết sản phẩm,\nsize và topping
+
+        == Chọn size ==
+
+        Customer -> UI: Chọn size
+        UI -> UI: Cập nhật size được chọn
+
+        == Chọn topping ==
+
+        loop Với mỗi topping khách hàng thao tác
+            Customer -> UI: Chọn / bỏ chọn topping
+            UI -> UI: Cập nhật danh sách topping
+        end
+
+        == Cập nhật giá ==
+
+        UI -> UI: Tính giá size + tổng giá topping
+        UI --> Customer: Hiển thị giá tùy chọn
+
+        Customer -> UI: Hoàn tất lựa chọn
+        UI --> Customer: Kết thúc UC-03
+    end
+end
+
+deactivate UI
+
+note over UI, DB
+  UC-03 chỉ tải dữ liệu sản phẩm
+  và cập nhật lựa chọn trên giao diện.
+
+  Không thêm sản phẩm vào giỏ hàng.
+  Không tạo Order hoặc OrderItem.
+end note
+
+@enduml

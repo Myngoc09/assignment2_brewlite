@@ -1,0 +1,52 @@
+@startuml
+left to right direction
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam linetype polyline
+skinparam ArrowThickness 1.5
+skinparam shadowing false
+skinparam actor {
+    BackgroundColor #E1F5FE
+    BorderColor #0288D1
+}
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #0288D1
+    ArrowColor #37474F
+}
+
+title USE CASE - XEM CHI TIẾT SẢN PHẨM VÀ CHỌN TÙY CHỌN
+
+actor "Khách hàng" as Customer
+
+rectangle "Hệ thống BrewLite" {
+    usecase "Xem danh sách sản phẩm\n(UC-01)" as UC_Menu
+    usecase "Xem chi tiết sản phẩm\n(UC-02)" as UC_Detail
+    usecase "Xem tình trạng còn hàng\ncủa size và topping" as UC_Stock
+    usecase "Chọn tùy chọn sản phẩm\n(UC-03)" as UC_Options
+    usecase "Chọn size\n(bắt buộc, chọn một)" as UC_Size
+    usecase "Chọn topping\n(tùy chọn, chọn nhiều)" as UC_Topping
+    usecase "Thêm vào giỏ hàng\n(UC-04)" as UC_AddCart
+}
+
+Customer --> UC_Menu
+Customer --> UC_Detail
+Customer --> UC_Options
+Customer --> UC_AddCart
+
+UC_Detail .> UC_Menu : <<extend>>
+UC_Detail ..> UC_Stock : <<include>>
+UC_Options ..> UC_Detail : <<include>>
+UC_Options ..> UC_Size : <<include>>
+UC_Topping .> UC_Options : <<extend>>
+UC_AddCart ..> UC_Options : <<include>>
+
+note bottom of UC_Detail
+  Gọi GET /api/products/{id}.
+  Sản phẩm không tồn tại hoặc
+  ngừng bán: API trả 404.
+end note
+
+@enduml

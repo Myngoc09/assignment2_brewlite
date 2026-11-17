@@ -1,0 +1,81 @@
+
+@startuml
+title UC-03: CHỌN TÙY CHỌN SẢN PHẨM
+
+skinparam defaultFontName Arial
+skinparam shadowing false
+
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+
+|Khách hàng|
+start
+:Chọn sản phẩm từ menu;
+
+|Giao diện Next.js|
+:Gửi yêu cầu GET /api/products/{id};
+
+|API NestJS|
+:Tìm sản phẩm đang hoạt động;
+:Lấy thông tin size và topping;
+
+|PostgreSQL|
+:Trả dữ liệu sản phẩm,\nsize, topping và công thức nguyên liệu;
+
+|API NestJS|
+:Tính availableQuantity\ncho từng size và topping;
+:Trả thông tin chi tiết sản phẩm;
+
+|Giao diện Next.js|
+if (Tìm thấy sản phẩm?) then (Không)
+    :Hiển thị thông báo lỗi;
+    stop
+else (Có)
+    :Hiển thị chi tiết sản phẩm;
+    :Hiển thị danh sách size và topping;
+endif
+
+if (Có size còn hàng?) then (Không)
+    :Không chọn sẵn size nào;
+    :Vô hiệu hóa tất cả nút size;
+    stop
+else (Có)
+    :Ưu tiên chọn size M nếu còn hàng;
+    :Nếu M hết hàng, chọn size\ncòn hàng đầu tiên;
+endif
+:Đặt danh sách topping về rỗng;
+
+|Khách hàng|
+:Chọn size mong muốn;
+
+|Giao diện Next.js|
+:Cập nhật size được chọn;
+
+|Khách hàng|
+:Chọn hoặc bỏ chọn topping;
+
+|Giao diện Next.js|
+:Cập nhật danh sách topping;
+:Tính giá size + tổng giá topping;
+:Hiển thị giá tùy chọn;
+
+|Khách hàng|
+:Hoàn tất lựa chọn;
+stop
+
+note right
+  Phạm vi UC-03:
+  - Xem chi tiết sản phẩm
+  - Xem khả năng phục vụ
+  - Chọn một size
+  - Chọn nhiều topping tùy ý
+  - Cập nhật giá tùy chọn
+
+  Không bao gồm thao tác thêm vào giỏ hàng.
+end note
+
+@enduml

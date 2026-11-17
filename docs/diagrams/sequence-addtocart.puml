@@ -1,0 +1,81 @@
+@startuml
+autonumber "<b>0.#'.'</b>"
+title SEQUENCE DIAGRAM - THÊM VÀO GIỎ HÀNG
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam sequence {
+    ArrowColor #37474F
+    LifeLineBorderColor #0288D1
+    LifeLineBackgroundColor #E1F5FE
+    ParticipantBorderColor #0288D1
+    ParticipantBackgroundColor #E1F5FE
+    ActorBorderColor #0288D1
+    ActorBackgroundColor #E1F5FE
+}
+
+actor "Khách hàng" as KH
+participant "UI\n(Next.js)" as UI
+participant "Giỏ hàng\n(state trên trình duyệt)" as Cart
+participant "API\n(NestJS)" as API
+database "PostgreSQL" as DB
+
+KH -> UI: Chọn sản phẩm trong menu
+activate UI
+UI -> API: GET /api/products/{id}
+activate API
+API -> DB: Truy vấn sản phẩm đang hoạt động theo id hoặc slug
+activate DB
+DB --> API: Dữ liệu sản phẩm
+deactivate DB
+
+alt Tìm thấy sản phẩm
+    API --> UI: 200 OK: chi tiết sản phẩm và số lượng còn lại
+    deactivate API
+    UI -> UI: Chọn sẵn size mặc định (M hoặc size còn hàng đầu tiên),\nđặt danh sách topping về rỗng
+    UI --> KH: Hiển thị chi tiết sản phẩm
+
+    KH -> UI: Chọn size và topping (nếu có) (UC-03)
+    UI -> UI: Cập nhật size và danh sách topping đã chọn
+
+    KH -> UI: Bấm "Thêm vào giỏ"
+    UI -> Cart: Đọc các dòng đang có trong giỏ
+    activate Cart
+    Cart --> UI: Danh sách dòng giỏ hàng
+    deactivate Cart
+    UI -> UI: Kiểm tra còn đủ hàng cho size và từng topping đã chọn\n(số lượng trong giỏ < số lượng còn lại)
+
+    alt Không còn đủ hàng
+        UI --> KH: Thông báo "Số lượng trong giỏ đã bằng\nsố lượng còn lại"
+    else Còn đủ hàng
+        UI -> UI: Tạo khóa dòng = sản phẩm + size\n+ các topping đã chọn (sắp xếp theo id)
+        UI -> Cart: Thêm sản phẩm vào giỏ
+        activate Cart
+        alt Khóa đã có trong giỏ (cùng sản phẩm, size, topping)
+            Cart -> Cart: Tăng số lượng dòng đó thêm 1
+        else Khóa chưa có (khác size hoặc khác topping)
+            Cart -> Cart: Thêm dòng mới, số lượng 1
+        end
+        Cart --> UI: Giỏ hàng đã cập nhật
+        deactivate Cart
+        UI -> UI: Đóng chi tiết, tính lại tổng tiền
+        UI --> KH: Thông báo "Đã thêm vào giỏ hàng",\ncập nhật số món trên nút Giỏ hàng
+    end
+
+else Không tìm thấy sản phẩm
+    activate API
+    API --> UI: 404 Not Found
+    deactivate API
+    UI --> KH: Thông báo lỗi
+end
+deactivate UI
+
+note over UI, Cart
+  Thêm vào giỏ chỉ xảy ra ở trình duyệt, không gọi API và không ghi DB.
+  Giỏ hàng chỉ được gửi lên server khi đặt hàng (POST /api/orders).
+end note
+
+@enduml
