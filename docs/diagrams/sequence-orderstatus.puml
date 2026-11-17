@@ -1,0 +1,127 @@
+@startuml sequence-orderstatus
+autonumber
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #37474F
+    LifeLineBorderColor #0288D1
+    LifeLineBackgroundColor #E1F5FE
+    ParticipantBorderColor #0288D1
+    ParticipantBackgroundColor #E1F5FE
+    ActorBorderColor #0288D1
+    ActorBackgroundColor #E1F5FE
+}
+
+actor "Nhân viên / Quản lý" as Staff
+participant "Client\n(UI / Thunder Client)" as Client
+participant "NestJS API\n(AuthGuard, OrdersController)" as API
+participant "OrdersService" as Svc
+participant "InventoryService" as Inv
+database "PostgreSQL" as DB
+
+Staff -> Client : Chọn đơn và trạng thái mới
+activate Staff
+activate Client
+Client -> API : PATCH /api/orders/{id}/status\n{ "status": "PREPARING" } + Bearer JWT
+activate API
+API -> API : AuthGuard xác thực JWT\n(lấy sub và role)
+
+alt JWT thiếu, hết hạn hoặc không hợp lệ
+  API --> Client : 401 Unauthorized
+else JWT hợp lệ
+  API -> API : ValidationPipe kiểm tra status\n∈ {PREPARING, READY, COMPLETED, CANCELLED}
+  alt status không hợp lệ
+    API --> Client : 400 Bad Request
+  else status hợp lệ
+    API -> API : staff = (role là STAFF hoặc MANAGER)
+    API -> Svc : status(userId, staff, id, status)
+    activate Svc
+
+    alt Không phải staff và status ≠ CANCELLED
+      Svc --> API : ForbiddenException
+      API --> Client : 403 Forbidden\n(Staff role required)
+    else Được phép thực hiện
+      Svc -> DB : SELECT id FROM Order WHERE id\n(thêm AND userId nếu không phải staff)
+      activate DB
+      DB --> Svc : Order hoặc null
+      deactivate DB
+
+      alt Không tìm thấy đơn
+        Svc --> API : NotFoundException
+        API --> Client : 404 Not Found
+      else Tìm thấy đơn
+
+        alt status = CANCELLED (hủy đơn)
+          group Transaction hủy đơn
+            Svc -> DB : BEGIN
+            Svc -> DB : SELECT id FROM Order WHERE id = {id} FOR UPDATE\n(khóa dòng đơn)
+            Svc -> DB : Tìm Payment (method = VNPAY_QR, status = PENDING)
+            activate DB
+            DB --> Svc : Payment hoặc null
+            deactivate DB
+
+            alt Có giao dịch VNPAY đang chờ
+              Svc -> DB : ROLLBACK
+              Svc --> API : ConflictException
+              API --> Client : 409 Conflict\n(Đơn đang chờ xác nhận từ VNPAY)
+            else Không có giao dịch chờ
+              Svc -> DB : UPDATE Order SET status = CANCELLED\nWHERE id AND status IN (trạng thái cho phép hủy)\n+ INSERT OrderStatusHistory (CANCELLED, changedById)
+              activate DB
+              note right of DB
+                Trạng thái cho phép hủy:
+                staff: PENDING, PAYMENT_FAILED, PAID
+                khách: PENDING, PAYMENT_FAILED
+              end note
+              DB --> Svc : Order đã hủy hoặc P2025 (không khớp điều kiện)
+              deactivate DB
+
+              alt Không có dòng nào được cập nhật (P2025)
+                Svc -> DB : ROLLBACK
+                Svc --> API : ConflictException
+                API --> Client : 409 Conflict\n(Order cannot move to that status)
+              else Cập nhật thành công
+                Svc -> DB : UPDATE Product SET inventory = inventory + quantity\n(các dòng usesProductStock)
+                Svc -> Inv : release(tx, orderId, userId)
+                activate Inv
+                Inv -> DB : SELECT StockMovement (type = RESERVE)
+                Inv -> DB : UPDATE Ingredient SET available = available + quantity\n+ INSERT StockMovement (type = RELEASE)
+                Inv --> Svc : Đã giải phóng nguyên liệu
+                deactivate Inv
+                Svc -> DB : COMMIT
+                Svc --> API : Order (CANCELLED)
+                API --> Client : 200 OK
+              end
+            end
+          end
+
+        else status = PREPARING, READY hoặc COMPLETED (tiến độ đơn)
+          Svc -> DB : UPDATE Order SET status = {status}\nWHERE id AND status IN (bước trước hợp lệ)\n+ INSERT OrderStatusHistory (status, changedById)
+          activate DB
+          note right of DB
+            Bước trước hợp lệ:
+            PREPARING ← PAID
+            READY ← PREPARING
+            COMPLETED ← READY
+          end note
+          DB --> Svc : Order mới hoặc P2025 (không khớp điều kiện)
+          deactivate DB
+
+          alt Không có dòng nào được cập nhật (P2025)
+            Svc --> API : ConflictException
+            API --> Client : 409 Conflict\n(Order cannot move to that status)
+          else Cập nhật thành công
+            Svc --> API : Order (trạng thái mới)
+            API --> Client : 200 OK
+          end
+        end
+
+      end
+    end
+    deactivate Svc
+  end
+end
+
+deactivate API
+Client --> Staff : Hiển thị trạng thái mới hoặc thông báo lỗi
+deactivate Client
+deactivate Staff
+@enduml

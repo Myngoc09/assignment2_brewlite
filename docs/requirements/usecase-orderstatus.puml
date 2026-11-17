@@ -1,0 +1,71 @@
+@startuml usecase-orderstatus
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor "Nhân viên" as Staff
+actor "Quản lý cửa hàng" as Manager
+actor "Khách hàng" as Customer
+
+Manager --|> Staff
+
+rectangle "Phân hệ Quản lý trạng thái đơn hàng (BrewLite)" {
+  usecase "UC-15 Cập nhật tiến độ đơn\n(PATCH /api/orders/{id}/status)" as UC_Progress
+  usecase "Bắt đầu pha chế\n(PAID → PREPARING)" as UC_Prepare
+  usecase "Báo đơn sẵn sàng\n(PREPARING → READY)" as UC_Ready
+  usecase "Hoàn tất đơn\n(READY → COMPLETED)" as UC_Complete
+
+  usecase "Hủy đơn hàng\n(status = CANCELLED)" as UC_Cancel
+  usecase "UC-16 Hủy đơn đã thanh toán\n(PAID → CANCELLED)" as UC_CancelPaid
+  usecase "UC-13 Hủy đơn chưa thanh toán\n(PENDING / PAYMENT_FAILED → CANCELLED)" as UC_CancelUnpaid
+
+  usecase "Xác thực JWT\n& kiểm tra vai trò" as UC_Auth
+  usecase "Kiểm tra chuyển trạng thái hợp lệ\n(statusTransitions)" as UC_Check
+  usecase "Ghi lịch sử trạng thái\n(OrderStatusHistory)" as UC_History
+  usecase "Hoàn trả tồn kho\n(sản phẩm & nguyên liệu)" as UC_Release
+  usecase "Chặn khi VNPAY\nđang chờ xác nhận" as UC_Vnpay
+}
+
+Staff --> UC_Progress
+Staff --> UC_CancelPaid
+Customer --> UC_CancelUnpaid
+
+UC_Prepare --|> UC_Progress
+UC_Ready --|> UC_Progress
+UC_Complete --|> UC_Progress
+
+UC_CancelPaid --|> UC_Cancel
+UC_CancelUnpaid --|> UC_Cancel
+
+UC_Progress ..> UC_Auth : <<include>>
+UC_Progress ..> UC_Check : <<include>>
+UC_Progress ..> UC_History : <<include>>
+
+UC_Cancel ..> UC_Auth : <<include>>
+UC_Cancel ..> UC_Check : <<include>>
+UC_Cancel ..> UC_History : <<include>>
+UC_Cancel ..> UC_Release : <<include>>
+UC_Cancel ..> UC_Vnpay : <<include>>
+
+note right of UC_Auth
+  - Thiếu hoặc sai JWT: HTTP 401.
+  - Khách hàng chỉ được gửi CANCELLED
+    trên đơn của chính mình (403 / 404).
+  - STAFF và MANAGER dùng chung quyền vận hành.
+end note
+
+note right of UC_Check
+  Chuyển trạng thái hợp lệ:
+  PREPARING  ← PAID
+  READY      ← PREPARING
+  COMPLETED  ← READY
+  CANCELLED  ← PENDING, PAYMENT_FAILED, PAID
+  (khách hàng chỉ hủy PENDING, PAYMENT_FAILED)
+  Sai bước: HTTP 409.
+end note
+
+note right of UC_Vnpay
+  Đơn có thanh toán VNPAY_QR
+  đang PENDING thì chưa được hủy (HTTP 409).
+end note
+@enduml
