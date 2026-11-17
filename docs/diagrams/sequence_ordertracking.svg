@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1900" viewBox="0 0 1500 1900">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#263238"/></marker>
+  <marker id="arrowReturn" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#455a64"/></marker>
+  <style>
+    .title{font: bold 25px Arial,sans-serif;fill:#17212b}.actor{fill:#f4f7fb;stroke:#263238;stroke-width:2}.participant{fill:#e8f1fb;stroke:#263238;stroke-width:2}.db{fill:#edf6ee;stroke:#263238;stroke-width:2}.lifeline{stroke:#82909a;stroke-width:1.6;stroke-dasharray:8 7}.activation{fill:#d9e8f5;stroke:#34495e;stroke-width:1.3}.msg{stroke:#263238;stroke-width:2;fill:none;marker-end:url(#arrow)}.ret{stroke:#455a64;stroke-width:1.8;fill:none;stroke-dasharray:8 5;marker-end:url(#arrowReturn)}.label{font: 17px Arial,sans-serif;fill:#17212b}.small{font:15px Arial,sans-serif;fill:#263238}.frame{fill:#fff;stroke:#34495e;stroke-width:2}.framehead{fill:#e9eef5;stroke:#34495e;stroke-width:1.5}.divider{stroke:#7b8790;stroke-width:1.3;stroke-dasharray:6 4}
+  </style>
+</defs>
+<rect width="1500" height="1900" fill="#ffffff"/>
+<text x="750" y="42" text-anchor="middle" class="title">Sequence Diagram – Theo dõi đơn hàng</text>
+<!-- participants -->
+<rect x="65" y="75" width="190" height="65" rx="8" class="actor"/><text x="160" y="115" text-anchor="middle" class="label">Customer</text>
+<rect x="405" y="75" width="190" height="65" rx="8" class="participant"/><text x="500" y="115" text-anchor="middle" class="label">UI</text>
+<rect x="745" y="75" width="190" height="65" rx="8" class="participant"/><text x="840" y="115" text-anchor="middle" class="label">API</text>
+<rect x="1110" y="75" width="230" height="65" rx="8" class="db"/><text x="1225" y="115" text-anchor="middle" class="label">PostgreSQL</text>
+<path d="M160 140 V1710 M500 140 V1710 M840 140 V1710 M1225 140 V1710" class="lifeline"/>
+<!-- activations -->
+<rect x="152" y="165" width="16" height="48" class="activation"/>
+<rect x="492" y="235" width="16" height="75" class="activation"/>
+<rect x="832" y="310" width="16" height="235" class="activation"/>
+<rect x="1217" y="375" width="16" height="75" class="activation"/>
+<rect x="492" y="555" width="16" height="105" class="activation"/>
+<rect x="152" y="660" width="16" height="55" class="activation"/>
+<rect x="492" y="755" width="16" height="70" class="activation"/>
+<rect x="832" y="825" width="16" height="250" class="activation"/>
+<rect x="1217" y="900" width="16" height="75" class="activation"/>
+<rect x="492" y="1080" width="16" height="90" class="activation"/>
+<rect x="152" y="1170" width="16" height="55" class="activation"/>
+<!-- message sequence -->
+<path d="M168 185 H492" class="msg"/><text x="330" y="174" text-anchor="middle" class="label">1: Mở Lịch sử đơn hàng</text>
+<path d="M508 255 H832" class="msg"/><text x="670" y="244" text-anchor="middle" class="label">2: GET /api/orders/mine + Bearer JWT</text>
+<path d="M840 335 H855 V365 H840" class="msg"/><text x="865" y="350" class="small">3: Xác thực JWT, lấy customerId</text>
+<path d="M848 400 H1217" class="msg"/><text x="1032" y="389" text-anchor="middle" class="label">4: SELECT orders WHERE userId = customerId</text>
+<path d="M1217 430 H848" class="ret"/><text x="1032" y="420" text-anchor="middle" class="label">5: Danh sách đơn + trạng thái mới nhất</text>
+<path d="M832 480 H508" class="ret"/><text x="670" y="469" text-anchor="middle" class="label">6: 200 OK: danh sách đơn</text>
+<path d="M492 590 H168" class="ret"/><text x="330" y="579" text-anchor="middle" class="label">7: Hiển thị lịch sử đơn và trạng thái</text>
+<path d="M168 680 H492" class="msg"/><text x="330" y="669" text-anchor="middle" class="label">8: Chọn orderId để xem tracking</text>
+<path d="M508 780 H832" class="msg"/><text x="670" y="769" text-anchor="middle" class="label">9: GET /api/orders/{id} + Bearer JWT</text>
+<path d="M840 850 H855 V880 H840" class="msg"/><text x="865" y="865" class="small">10: Xác thực JWT và quyền sở hữu</text>
+<path d="M848 925 H1217" class="msg"/><text x="1032" y="914" text-anchor="middle" class="label">11: Đọc Order và lịch sử trạng thái</text>
+<path d="M1217 960 H848" class="ret"/><text x="1032" y="950" text-anchor="middle" class="label">12: Trạng thái, thời điểm</text>
+<path d="M832 1010 H508" class="ret"/><text x="670" y="999" text-anchor="middle" class="label">13: 200 OK: chi tiết tracking</text>
+<path d="M492 1115 H168" class="ret"/><text x="330" y="1104" text-anchor="middle" class="label">14: Hiển thị tiến trình xử lý đơn</text>
+<!-- alternative fragment -->
+<rect x="55" y="1280" width="1390" height="440" rx="4" class="frame"/>
+<rect x="55" y="1280" width="190" height="38" class="framehead"/><text x="75" y="1306" class="label">alt</text>
+<text x="270" y="1306" class="small">Các trường hợp lỗi</text>
+<path d="M55 1415 H1445" class="divider"/><path d="M55 1555 H1445" class="divider"/>
+<text x="75" y="1350" class="label">[JWT không hợp lệ]</text>
+<path d="M840 1365 H500" class="ret"/><text x="670" y="1354" text-anchor="middle" class="label">15a: 401 Unauthorized</text>
+<path d="M500 1395 H160" class="ret"/><text x="330" y="1384" text-anchor="middle" class="label">Yêu cầu đăng nhập</text>
+<text x="75" y="1450" class="label">[Đơn không tìm thấy hoặc không thuộc khách hàng]</text>
+<path d="M840 1475 H500" class="ret"/><text x="670" y="1464" text-anchor="middle" class="label">15b: 404 Not Found</text>
+<path d="M500 1505 H160" class="ret"/><text x="330" y="1494" text-anchor="middle" class="label">Thông báo không tìm thấy đơn</text>
+<text x="75" y="1590" class="label">[Lỗi truy vấn]</text>
+<path d="M840 1620 H500" class="ret"/><text x="670" y="1609" text-anchor="middle" class="label">15c: 5xx Server Error</text>
+<path d="M500 1650 H160" class="ret"/><text x="330" y="1639" text-anchor="middle" class="label">Báo lỗi và cho phép thử lại</text>
+<text x="750" y="1790" text-anchor="middle" class="small">Các đường nét liền: lời gọi; đường nét đứt: phản hồi</text>
+</svg>

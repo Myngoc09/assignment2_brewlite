@@ -1,0 +1,71 @@
+@startuml activity-payment
+skinparam shadowing false
+skinparam ConditionEndStyle hline
+
+|Khách hàng|
+start
+:Xem thông tin đơn hàng (PENDING);
+:Chọn phương thức thanh toán\n(MOCK_WALLET hoặc MOCK_CARD);
+:Nhấn "Thanh toán";
+
+|Hệ thống (Next.js / NestJS API)|
+:Tạo/Gửi Idempotency-Key\n& gọi POST /api/payments;
+:Xác thực JWT & quyền sở hữu đơn;
+
+if (JWT hợp lệ & đúng chủ đơn?) then (Không)
+  :Trả lỗi HTTP 401 / 403;
+  |Khách hàng|
+  :Hiển thị thông báo lỗi xác thực;
+  stop
+else (Có)
+endif
+
+|Hệ thống (Next.js / NestJS API)|
+:Kiểm tra Idempotency-Key\nvới mã đơn trong PostgreSQL;
+
+if (Đã tồn tại giao dịch với Key này?) then (Có)
+  :Lấy kết quả giao dịch cũ;
+  |Khách hàng|
+  :Hiển thị kết quả giao dịch cũ;
+  stop
+else (Chưa)
+endif
+
+if (Trạng thái đơn là PENDING\nhoặc PAYMENT_FAILED?) then (Không)
+  :Trả lỗi HTTP 409 (Conflict);
+  |Khách hàng|
+  :Thông báo trạng thái đơn không hợp lệ;
+  stop
+else (Có)
+endif
+
+:Tạo bản ghi Payment (PENDING);
+
+|Payment Simulator|
+:Tiếp nhận yêu cầu thanh toán\n(Số tiền VND, Phương thức);
+:Mô phỏng xử lý giao dịch;
+
+|Hệ thống (Next.js / NestJS API)|
+if (Kết quả giao dịch thành công?) then (Thành công)
+  :Bắt đầu Database Transaction;
+  :Cập nhật Payment -> SUCCEEDED\n(lưu providerReference);
+  :Cập nhật Order -> PAID;
+  :Ghi OrderStatusHistory (PAID);
+  :Cộng điểm thưởng (LoyaltyTransaction - EARN);
+  :Commit Transaction;
+  :Xóa giỏ hàng hiện tại trên UI;
+  |Khách hàng|
+  :Hiển thị hóa đơn & mã đơn hàng;
+  stop
+else (Thất bại)
+  :Bắt đầu Database Transaction;
+  :Cập nhật Payment -> FAILED;
+  :Cập nhật Order -> PAYMENT_FAILED;
+  :Ghi OrderStatusHistory (PAYMENT_FAILED);
+  :Commit Transaction;
+  |Khách hàng|
+  :Thông báo thanh toán thất bại;
+  :Giữ nguyên giỏ/đơn & hiển thị nút "Thử lại"\n(sẽ sinh Idempotency-Key mới);
+  stop
+endif
+@enduml

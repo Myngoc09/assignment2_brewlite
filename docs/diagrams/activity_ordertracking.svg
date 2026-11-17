@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2000" viewBox="0 0 1440 2000">
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#334155"/></marker><style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#172033} .lane{fill:#f8fafc;stroke:#cbd5e1;stroke-width:2} .head{fill:#e2e8f0} .node{fill:#fff;stroke:#2563eb;stroke-width:2} .db{fill:#eff6ff;stroke:#2563eb;stroke-width:2} .decision{fill:#fff7ed;stroke:#ea580c;stroke-width:2} .edge{fill:none;stroke:#334155;stroke-width:2.4;marker-end:url(#arrow)} .label{font-size:18px;font-weight:bold} .small{font-size:16px} .title{font-size:26px;font-weight:bold}
+</style></defs><rect width="100%" height="100%" fill="#fff"/><text x="720" y="42" text-anchor="middle" class="title">Activity Diagram – Theo dõi đơn hàng</text>
+<rect x="0" y="65" width="360" height="1800" class="lane"/><rect x="0" y="65" width="360" height="55" class="head"/><text x="180" y="100" text-anchor="middle" class="label">Khách hàng</text>
+<rect x="360" y="65" width="360" height="1800" class="lane"/><rect x="360" y="65" width="360" height="55" class="head"/><text x="540" y="100" text-anchor="middle" class="label">UI</text>
+<rect x="720" y="65" width="360" height="1800" class="lane"/><rect x="720" y="65" width="360" height="55" class="head"/><text x="900" y="100" text-anchor="middle" class="label">API</text>
+<rect x="1080" y="65" width="360" height="1800" class="lane"/><rect x="1080" y="65" width="360" height="55" class="head"/><text x="1260" y="100" text-anchor="middle" class="label">PostgreSQL</text>
+<rect x="55.0" y="136.0" width="250" height="58" rx="12" class="node"/>
+<text x="180" y="171" text-anchor="middle" class="small">Mở mục Đơn hàng</text>
+<polygon points="180,235.0 295.0,285 180,335.0 65.0,285" class="decision"/>
+<text x="180" y="290" text-anchor="middle" class="small">Đã đăng nhập?</text>
+<rect x="50.0" y="379.0" width="260" height="62" rx="12" class="node"/>
+<text x="180" y="416" text-anchor="middle" class="small">Đăng nhập / xác thực</text>
+<rect x="400.0" y="500.0" width="280" height="70" rx="12" class="node"/>
+<text x="540" y="530" text-anchor="middle" class="small">Gửi GET /api/orders/mine</text>
+<text x="540" y="552" text-anchor="middle" class="small">kèm JWT</text>
+<rect x="760.0" y="615.0" width="280" height="70" rx="12" class="node"/>
+<text x="900" y="645" text-anchor="middle" class="small">Kiểm tra JWT và</text>
+<text x="900" y="667" text-anchor="middle" class="small">quyền truy cập</text>
+<rect x="1120.0" y="730.0" width="280" height="70" rx="12" class="db"/>
+<text x="1260" y="760" text-anchor="middle" class="small">Đọc các đơn của</text>
+<text x="1260" y="782" text-anchor="middle" class="small">customerId</text>
+<rect x="755.0" y="845.0" width="290" height="70" rx="12" class="node"/>
+<text x="900" y="875" text-anchor="middle" class="small">Trả danh sách đơn và</text>
+<text x="900" y="897" text-anchor="middle" class="small">trạng thái mới nhất</text>
+<polygon points="540,950.0 655.0,1000 540,1050.0 425.0,1000" class="decision"/>
+<text x="540" y="1005" text-anchor="middle" class="small">Có đơn hàng?</text>
+<rect x="395.0" y="1089.0" width="290" height="62" rx="12" class="node"/>
+<text x="540" y="1126" text-anchor="middle" class="small">Hiển thị lịch sử đơn</text>
+<rect x="40.0" y="1199.0" width="280" height="62" rx="12" class="node"/>
+<text x="180" y="1236" text-anchor="middle" class="small">Chọn đơn cần theo dõi</text>
+<rect x="395.0" y="1305.0" width="290" height="70" rx="12" class="node"/>
+<text x="540" y="1335" text-anchor="middle" class="small">Gửi GET /api/orders/{id}</text>
+<text x="540" y="1357" text-anchor="middle" class="small">kèm JWT</text>
+<rect x="755.0" y="1415.0" width="290" height="70" rx="12" class="node"/>
+<text x="900" y="1445" text-anchor="middle" class="small">Kiểm tra đơn thuộc</text>
+<text x="900" y="1467" text-anchor="middle" class="small">khách hàng</text>
+<rect x="1115.0" y="1525.0" width="290" height="70" rx="12" class="db"/>
+<text x="1260" y="1555" text-anchor="middle" class="small">Đọc Order và lịch sử</text>
+<text x="1260" y="1577" text-anchor="middle" class="small">trạng thái</text>
+<rect x="755.0" y="1635.0" width="290" height="70" rx="12" class="node"/>
+<text x="900" y="1676" text-anchor="middle" class="small">Trả trạng thái, thời điểm</text>
+<rect x="395.0" y="1739.0" width="290" height="62" rx="12" class="node"/>
+<text x="540" y="1776" text-anchor="middle" class="small">Hiển thị tiến trình xử lý</text>
+<path d="M 180,194 L 180,235" class="edge"/>
+<path d="M 180,335 L 180,379" class="edge"/>
+<text x="198" y="360" class="small" font-weight="bold">Không</text>
+<path d="M 180,441 L 180,480 L 540,480 L 540,500" class="edge"/>
+<path d="M 295,285 L 420,285 L 420,535 L 400,535" class="edge"/>
+<text x="330" y="270" class="small" font-weight="bold">Có</text>
+<path d="M 540,570 L 540,615 L 900,615" class="edge"/>
+<path d="M 900,685 L 900,730 L 1260,730" class="edge"/>
+<path d="M 1260,800 L 1260,845 L 900,845 L 900,880" class="edge"/>
+<path d="M 900,915 L 900,1000 L 655,1000" class="edge"/>
+<path d="M 540,1050 L 540,1089" class="edge"/>
+<text x="558" y="1075" class="small" font-weight="bold">Có</text>
+<path d="M 540,1151 L 540,1199" class="edge"/>
+<path d="M 540,1151 L 540,1230 L 180,1230" class="edge"/>
+<path d="M 180,1261 L 180,1305 L 540,1305 L 540,1305" class="edge"/>
+<path d="M 540,1375 L 540,1415 L 900,1415 L 900,1415" class="edge"/>
+<path d="M 900,1485 L 900,1525 L 1260,1525 L 1260,1525" class="edge"/>
+<path d="M 1260,1595 L 1260,1635 L 900,1635 L 900,1635" class="edge"/>
+<path d="M 900,1705 L 900,1738 L 540,1738 L 540,1739" class="edge"/>
+<path d="M 540,1801 L 540,1820 L 180,1820" class="edge"/>
+<path d="M 655,1000 L 700,1000 L 700,1080" class="edge"/>
+<text x="670" y="980" class="small" font-weight="bold">Không</text>
+<rect x="590.0" y="1109.0" width="220" height="62" rx="12" class="node"/>
+<text x="700" y="1135" text-anchor="middle" class="small">Thông báo chưa có</text>
+<text x="700" y="1157" text-anchor="middle" class="small">đơn hàng</text>
+<circle cx="180" cy="1930" r="13" fill="#172033"/><circle cx="180" cy="1930" r="8" fill="white"/>
+<circle cx="700" cy="1230" r="13" fill="#172033"/><circle cx="700" cy="1230" r="8" fill="white"/>
+<rect x="55.0" y="1821.0" width="250" height="58" rx="12" class="node"/>
+<text x="180" y="1856" text-anchor="middle" class="small">Xem trạng thái đơn</text>
+<path d="M 540,1801 L 540,1850 L 305,1850" class="edge"/>
+</svg>
