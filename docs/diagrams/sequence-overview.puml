@@ -1,0 +1,183 @@
+@startuml
+autonumber "<b>0.#'.'</b>"
+title SEQUENCE DIAGRAM TỔNG QUÁT - HỆ THỐNG BREWLITE
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam sequence {
+    ArrowColor #37474F
+    LifeLineBorderColor #0288D1
+    LifeLineBackgroundColor #E1F5FE
+    ParticipantBorderColor #0288D1
+    ParticipantBackgroundColor #E1F5FE
+    ActorBorderColor #0288D1
+    ActorBackgroundColor #E1F5FE
+    GroupBorderColor #78909C
+}
+
+actor "Khách hàng" as KH
+actor "Nhân viên" as NV
+participant "UI\n(Next.js)" as UI
+participant "API\n(NestJS)" as API
+database "PostgreSQL" as DB
+participant "VNPAY\nSandbox" as VNP
+
+== 1. Xem menu, chọn tùy chọn và thêm vào giỏ ==
+KH -> UI: Mở BrewLite
+UI -> API: GET /api/products
+API -> DB: Truy vấn sản phẩm đang bán\nkèm size, topping, công thức nguyên liệu
+DB --> API: Dữ liệu sản phẩm
+API --> UI: 200 OK: menu + availableQuantity
+UI --> KH: Hiển thị menu (tìm kiếm, lọc)
+
+KH -> UI: Chọn sản phẩm
+UI -> API: GET /api/products/{id}
+alt Tìm thấy sản phẩm
+    API --> UI: 200 OK: chi tiết, size, topping
+    UI --> KH: Hiển thị chi tiết
+    KH -> UI: Chọn size, topping, bấm "Thêm vào giỏ"
+    UI -> UI: Kiểm tra số lượng trong giỏ < availableQuantity,\nthêm dòng mới hoặc tăng số lượng
+    UI --> KH: "Đã thêm vào giỏ hàng"
+else Không tìm thấy
+    API --> UI: 404 Not Found
+    UI --> KH: Thông báo lỗi
+end
+note over UI
+  Giỏ hàng chỉ nằm ở trình duyệt,
+  chưa gọi API đặt hàng và chưa ghi DB.
+end note
+
+== 2. Đăng ký / Đăng nhập ==
+KH -> UI: Bấm "Thanh toán"
+opt Chưa đăng nhập
+    KH -> UI: Nhập email, mật khẩu (và tên nếu đăng ký)
+    UI -> API: POST /api/auth/register hoặc /api/auth/login
+    API -> DB: Tạo người dùng (bcrypt) hoặc tìm theo email
+    DB --> API: Người dùng
+    alt Hợp lệ
+        API --> UI: 200 OK: accessToken (JWT), user
+        UI -> UI: Lưu token vào localStorage
+    else Sai thông tin hoặc email đã tồn tại
+        API --> UI: 401 / 400
+        UI --> KH: Thông báo lỗi
+    end
+end
+note over UI, API
+  Các API còn lại gửi header Authorization: Bearer <JWT>,
+  AuthGuard xác thực token trước khi vào xử lý.
+end note
+
+== 3. Đặt hàng (tạo đơn PENDING và giữ tồn kho) ==
+KH -> UI: Nhập mã ưu đãi, chọn phương thức thanh toán, xác nhận
+UI -> API: POST /api/orders {items, promotionCode}
+activate API
+API -> DB: BEGIN transaction
+API -> DB: Kiểm tra sản phẩm, size, topping, tính giá và mã giảm giá
+alt Dữ liệu hợp lệ và đủ hàng
+    API -> DB: Trừ tồn kho sản phẩm / nguyên liệu\n(ghi StockMovement RESERVE)
+    API -> DB: Tạo Order (PENDING), OrderItem, lịch sử trạng thái
+    API -> DB: COMMIT
+    API --> UI: 201 Created: đơn hàng PENDING
+else Hết hàng, mã sai hoặc lựa chọn không hợp lệ
+    API -> DB: ROLLBACK
+    API --> UI: 400 Bad Request
+    UI --> KH: Thông báo hết hàng / lỗi, quay lại giỏ
+end
+deactivate API
+
+== 4. Thanh toán ==
+alt Ví / Thẻ mô phỏng (MOCK_WALLET, MOCK_CARD)
+    UI -> API: POST /api/payments {orderId, method}\n+ header Idempotency-Key
+    activate API
+    API -> DB: Khóa dòng Order (FOR UPDATE), tìm Payment cùng khóa
+    alt Đã xử lý trước đó (cùng Idempotency-Key)
+        API --> UI: Trả lại giao dịch cũ (replayed)
+    else Đơn PENDING hoặc PAYMENT_FAILED
+        API -> DB: Tạo Payment, cập nhật Order\n(PAID hoặc PAYMENT_FAILED), ghi lịch sử
+        opt Thanh toán thành công
+            API -> DB: Ghi điểm tích lũy (LoyaltyTransaction EARN)
+        end
+        API --> UI: 200 OK: payment + order
+    else Đơn không còn thanh toán được
+        API --> UI: 409 Conflict
+    end
+    deactivate API
+
+else VNPAY QR (Sandbox)
+    UI -> API: POST /api/orders/{id}/vnpay
+    API -> DB: Tạo Payment (PENDING), đơn về PENDING nếu đang PAYMENT_FAILED
+    API --> UI: paymentUrl đã ký (HMAC-SHA512), qrCode, expiresAt (15 phút)
+    UI --> KH: Hiển thị mã QR / nút "Mở trang VNPAY"
+    KH -> VNP: Quét QR, thanh toán trên trang VNPAY
+    VNP --> API: GET /api/payments/vnpay/ipn (server-to-server)
+    VNP --> UI: Chuyển hướng về /api/payments/vnpay/return
+    UI -> API: Chuyển tiếp yêu cầu return
+    API -> API: Kiểm tra chữ ký, mã terminal và số tiền
+    API -> DB: Cập nhật Payment, Order (PAID / PAYMENT_FAILED),\nghi điểm tích lũy nếu thành công\n(chỉ xử lý một lần cho IPN và return)
+    API --> VNP: {RspCode, Message}
+    loop Khi đơn còn PENDING (mỗi 2,5 giây)
+        UI -> API: GET /api/orders/{id}
+        API --> UI: Trạng thái đơn hiện tại
+    end
+end
+
+alt Đơn PAID
+    UI -> UI: Làm trống giỏ hàng
+    UI --> KH: Màn hình xác nhận: mã đơn, trạng thái PAID, số tiền
+else Đơn PAYMENT_FAILED
+    UI --> KH: Thông báo thất bại, giữ nguyên giỏ hàng
+    opt Khách chọn thanh toán lại
+        KH -> UI: Thanh toán lại
+        note right of UI: Lặp lại bước 4 cho cùng đơn hàng
+    end
+end
+
+== 5. Hủy đơn ==
+opt Khách hủy đơn chưa thanh toán
+    KH -> UI: Bấm "Hủy đơn" trong lịch sử
+    UI -> API: PATCH /api/orders/{id}/status {CANCELLED}
+    API -> DB: Khóa Order, kiểm tra không có VNPAY đang chờ,\nchỉ cho hủy khi PENDING hoặc PAYMENT_FAILED
+    alt Hủy được
+        API -> DB: CANCELLED, hoàn tồn kho sản phẩm,\nghi StockMovement RELEASE
+        API --> UI: 200 OK: đơn đã hủy
+    else Không hủy được
+        API --> UI: 409 Conflict
+    end
+    UI --> KH: Cập nhật trạng thái đơn
+end
+
+== 6. Lịch sử và theo dõi đơn hàng ==
+KH -> UI: Mở "Đơn hàng" / "Theo dõi đơn"
+UI -> API: GET /api/orders/me, /api/orders/loyalty, /api/orders/{id}
+API -> DB: Truy vấn đơn, thanh toán, mốc trạng thái, điểm tích lũy
+DB --> API: Dữ liệu
+API --> UI: 200 OK
+UI --> KH: Lịch sử, các mốc trạng thái và điểm tích lũy
+
+== 7. Nhân viên xử lý đơn và quản lý kho ==
+NV -> UI: Đăng nhập tài khoản nhân viên
+note right of NV: Vai trò STAFF / MANAGER trong JWT
+loop PAID → PREPARING → READY → COMPLETED
+    NV -> API: PATCH /api/orders/{id}/status {status}
+    API -> DB: Cập nhật nếu đúng thứ tự chuyển trạng thái,\nghi lịch sử
+    alt Chuyển đúng thứ tự
+        API --> NV: 200 OK
+    else Sai thứ tự
+        API --> NV: 409 Conflict
+    end
+end
+opt Quản lý kho
+    NV -> API: POST /api/inventory/ingredients/{id}/receipts,\nPUT /api/inventory/sizes|toppings/{id}/recipe
+    API -> DB: Nhập kho (RECEIPT) / cập nhật công thức
+    API --> NV: 200 OK
+end
+
+note over UI, VNP
+  Trình duyệt chỉ gọi /api/* trên Next.js; Next.js chuyển tiếp sang NestJS
+  (kèm Authorization, Content-Type, Idempotency-Key).
+end note
+
+@enduml
