@@ -1,1 +1,107 @@
-# �?c t? Use Case: �?t h�ng (UC-04 / Order)## 1. Th�ng tin t?ng quan| Thu?c t�nh | N?i dung chi ti?t || :--- | :--- || **M� Use Case** | `UC-04` || **T�n Use Case** | �?t h�ng (`POST /orders`) || **T�c nh�n ch�nh (Primary Actor)** | Kh�ch h�ng (`Customer`) || **T�c nh�n ph? (Secondary Actor)** | Kh�ng c� || **M� t? t�m t?t** | Cho ph�p kh�ch h�ng d� dang nh?p x�c nh?n th�ng tin giao h�ng v� t?o don h�ng t? c�c s?n ph?m trong gi? h�ng. H? th?ng ki?m tra t�nh h?p l? c?a s?n ph?m, s? lu?ng t?n kho, t�nh to�n t?ng ti?n ? ph�a m�y ch? v� luu th�ng tin don h�ng c�ng chi ti?t don h�ng v�o PostgreSQL v?i tr?ng th�i `PENDING`. Sau khi t?o don th�nh c�ng, h? th?ng l�m tr?ng gi? h�ng v� chuy?n kh�ch h�ng sang bu?c thanh to�n. || **Trigger (S? ki?n k�ch ho?t)** | Kh�ch h�ng truy c?p gi? h�ng, nh?n n�t **"Ti?n h�nh d?t h�ng"**, x�c nh?n th�ng tin giao h�ng v� nh?n **"�?t h�ng"**. || **Ti?n di?u ki?n (Pre-conditions)** | 1. Kh�ch h�ng d� dang nh?p v� s? h?u JWT h?p l?.<br>2. Gi? h�ng c� �t nh?t m?t s?n ph?m h?p l?.<br>3. C�c s?n ph?m trong gi? h�ng v?n dang du?c kinh doanh.<br>4. S? lu?ng s?n ph?m y�u c?u ph?i l?n hon 0.<br>5. H? th?ng c� th? k?t n?i v?i PostgreSQL. || **H?u di?u ki?n (Post-conditions)** | **Th�nh c�ng:**<br>- B?n ghi `Order` du?c t?o v?i tr?ng th�i `PENDING`.<br>- C�c b?n ghi `OrderItem` tuong ?ng du?c luu d?y d?.<br>- Gi? h�ng du?c l�m tr?ng sau khi t?o don th�nh c�ng.<br>- S? lu?ng t?n kho kh�ng b? thay d?i trong Use Case n�y.<br>- Kh�ch h�ng nh?n du?c m� don h�ng d? ti?p t?c thanh to�n.<br><br>**Th?t b?i:**<br>- �on h�ng kh�ng du?c t?o ho?c kh�ng du?c luu m?t ph?n.<br>- Gi? h�ng du?c gi? nguy�n.<br>- H? th?ng tr? v? th�ng b�o l?i ph� h?p. || **Truy v?t y�u c?u (Traceability)** | `FR-03`, `FR-05`, `FR-07`, `NFR-02`, `NFR-05`, `NFR-08` |---## 2. Lu?ng s? ki?n (Flows of Events)### 2.1. Lu?ng ch�nh (Main Flow - �?t h�ng th�nh c�ng)1. T?i giao di?n gi? h�ng tr�n **Next.js**, kh�ch h�ng nh?n n�t **"Ti?n h�nh d?t h�ng"**.2. H? th?ng hi?n th? danh s�ch s?n ph?m trong gi? h�ng, bao g?m t�n s?n ph?m, size, topping, s? lu?ng, don gi� v� t?ng ti?n t?m t�nh.3. Kh�ch h�ng ki?m tra gi? h�ng, nh?p ho?c x�c nh?n th�ng tin giao h�ng, ghi ch� don h�ng (n?u c�) v� nh?n n�t **"�?t h�ng"**.4. Giao di?n **Next.js** g?i y�u c?u `POST /orders` k�m JWT v� d? li?u d?t h�ng d?n m�y ch? **NestJS API**.5. **NestJS API** x�c th?c JWT, x�c d?nh kh�ch h�ng th?c hi?n y�u c?u v� ki?m tra t�nh h?p l? c?a d? li?u d?u v�o.6. **NestJS API** truy v?n PostgreSQL d? ki?m tra th�ng tin s?n ph?m, size, topping, gi� b�n v� s? lu?ng t?n kho tuong ?ng v?i c�c s?n ph?m trong don h�ng.7. N?u c�c th�ng tin h?p l? v� t?n kho d�p ?ng d? s? lu?ng y�u c?u, h? th?ng t�nh to�n l?i don gi� v� t?ng ti?n ? ph�a Backend, kh�ng s? d?ng tr?c ti?p t?ng ti?n do Frontend g?i l�n.8. **NestJS API** m? m?t Database Transaction tr�n PostgreSQL d? th?c hi?n:   - T?o b?n ghi `Order` m?i v?i tr?ng th�i `PENDING`.   - T?o c�c b?n ghi `OrderItem` tuong ?ng v?i t?ng s?n ph?m, bao g?m th�ng tin s?n ph?m, size, topping, s? lu?ng v� don gi� t?i th?i di?m d?t h�ng.9. **NestJS API** commit Database Transaction sau khi c�c b?n ghi du?c luu th�nh c�ng. S? lu?ng t?n kho du?c gi? nguy�n, kh�ng th?c hi?n thao t�c tr? ho?c c?p nh?t t?n kho trong Use Case n�y.10. Sau khi x�c nh?n t?o don h�ng th�nh c�ng, h? th?ng l�m tr?ng gi? h�ng c?a kh�ch h�ng.11. **NestJS API** tr? v? ph?n h?i th�nh c�ng, bao g?m m� don h�ng (`orderId`), th�ng tin don h�ng, t?ng ti?n v� tr?ng th�i `PENDING`.12. Giao di?n **Next.js** hi?n th? th�ng b�o d?t h�ng th�nh c�ng v� chuy?n kh�ch h�ng sang giao di?n thanh to�n don h�ng.### 2.2. Lu?ng thay th? (Alternative Flows)* **AF-01: Gi? h�ng tr?ng**  - **T?i bu?c 1 ho?c bu?c 2 c?a Lu?ng ch�nh:** N?u h? th?ng ph�t hi?n gi? h�ng kh�ng c� s?n ph?m:  - H? th?ng kh�ng cho ph�p kh�ch h�ng ti?p t?c d?t h�ng.  - Giao di?n hi?n th? th�ng b�o gi? h�ng dang tr?ng v� y�u c?u kh�ch h�ng ch?n s?n ph?m tru?c khi d?t h�ng.* **AF-02: S?n ph?m h?t h�ng ho?c kh�ng d? s? lu?ng t?n kho**  - **T?i bu?c 6 c?a Lu?ng ch�nh:** N?u h? th?ng ph�t hi?n s?n ph?m d� h?t h�ng ho?c s? lu?ng t?n kho kh�ng d�p ?ng s? lu?ng kh�ch h�ng y�u c?u:  - **NestJS API** t? ch?i t?o don h�ng v� tr? v? th�ng tin s?n ph?m kh�ng d? t?n kho.  - Giao di?n **Next.js** hi?n th? th�ng b�o c? th? d? kh�ch h�ng di?u ch?nh s? lu?ng ho?c x�a s?n ph?m kh?i gi? h�ng.  - Kh�ch h�ng c� th? c?p nh?t gi? h�ng v� th?c hi?n d?t h�ng l?i.* **AF-03: Th�ng tin giao h�ng kh�ng h?p l?**  - **T?i bu?c 3 ho?c bu?c 5 c?a Lu?ng ch�nh:** N?u th�ng tin giao h�ng b? thi?u ho?c kh�ng d�ng d?nh d?ng:  - H? th?ng th�ng b�o c�c tru?ng th�ng tin chua h?p l?.  - Kh�ch h�ng du?c y�u c?u nh?p ho?c ch?nh s?a l?i th�ng tin giao h�ng.  - Sau khi th�ng tin h?p l?, kh�ch h�ng ti?p t?c th?c hi?n d?t h�ng.* **AF-04: Kh�ch h�ng g?i l?i y�u c?u d?t h�ng**  - **T?i bu?c 4 c?a Lu?ng ch�nh:** N?u kh�ch h�ng g?i l?i y�u c?u do nh?n n�t nhi?u l?n ho?c k?t n?i m?ng kh�ng ?n d?nh:  - H? th?ng ki?m tra co ch? ch?ng g?i y�u c?u tr�ng l?p (n?u du?c tri?n khai).  - N?u y�u c?u d� du?c x? l� tru?c d�, h? th?ng tr? v? k?t qu? tuong ?ng thay v� t?o th�m don h�ng tr�ng l?p.### 2.3. Lu?ng ngo?i l? (Exception Flows)* **EF-01: Thi?u ho?c sai m� x�c th?c JWT**  - **T?i bu?c 5 c?a Lu?ng ch�nh:** N?u JWT b? thi?u, h?t h?n ho?c kh�ng h?p l?:  - **NestJS API** t? ch?i y�u c?u v� tr? v? m� l?i `HTTP 401 Unauthorized`.  - Giao di?n **Next.js** th�ng b�o phi�n dang nh?p d� h?t h?n v� y�u c?u kh�ch h�ng dang nh?p l?i.* **EF-02: S?n ph?m kh�ng t?n t?i ho?c kh�ng c�n du?c kinh doanh**  - **T?i bu?c 6 c?a Lu?ng ch�nh:** N?u m� s?n ph?m kh�ng t?n t?i, s?n ph?m d� b? ng?ng kinh doanh ho?c size/topping kh�ng h?p l?:  - **NestJS API** t? ch?i y�u c?u v� tr? v? th�ng tin l?i tuong ?ng (`HTTP 404` ho?c `HTTP 400`).  - H? th?ng kh�ng t?o don h�ng.  - Kh�ch h�ng du?c y�u c?u ki?m tra v� c?p nh?t l?i gi? h�ng.* **EF-03: L?i k?t n?i PostgreSQL ho?c l?i m�y ch?**  - **T?i bu?c 8 ho?c bu?c 9 c?a Lu?ng ch�nh:** N?u x?y ra l?i trong qu� tr�nh ghi d? li?u:  - **NestJS API** th?c hi?n rollback Database Transaction.  - C�c b?n ghi `Order` v� `OrderItem` kh�ng b? luu d? dang.  - Gi? h�ng kh�ng b? l�m tr?ng.  - H? th?ng tr? v? th�ng b�o l?i v� cho ph�p kh�ch h�ng th? l?i sau.* **EF-04: D? li?u don h�ng kh�ng c�n h?p l? t?i th?i di?m x? l�**  - **T?i bu?c 6 ho?c bu?c 7 c?a Lu?ng ch�nh:** N?u gi� s?n ph?m ho?c th�ng tin s?n ph?m d� thay d?i so v?i d? li?u trong gi? h�ng:  - H? th?ng s? d?ng th�ng tin gi� hi?n t?i t? PostgreSQL d? t�nh to�n l?i don h�ng.  - N?u c� ch�nh l?ch, h? th?ng th�ng b�o cho kh�ch h�ng x�c nh?n l?i th�ng tin v� t?ng ti?n tru?c khi ti?p t?c d?t h�ng.---## 3. Li�n k?t so d? & Ti�u ch� nghi?m thu (Acceptance Criteria)- **So d? Use Case:** `docs/diagrams/usecase-order.svg` (M� ngu?n: `docs/diagrams/usecase-order.puml`).- **So d? tu?n t? li�n quan:** `docs/diagrams/sequence-order.svg`.- **So d? ho?t d?ng li�n quan:** `docs/diagrams/activity-order.svg`.- **API tuong ?ng:** `POST /orders`.- **Integration Test:** `INT-T03` � Ki?m th? t�ch h?p ch?c nang t?o don h�ng.**Ti�u ch� nghi?m thu ki?m th? (Test Criteria):**1. Kh�ch h�ng c� JWT h?p l? v� gi? h�ng ch?a s?n ph?m h?p l? c� th? t?o don h�ng th�nh c�ng; h? th?ng luu d�ng m?t b?n ghi `Order` c�ng c�c `OrderItem` tuong ?ng v?i tr?ng th�i `PENDING`.2. Khi gi? h�ng tr?ng, h? th?ng t? ch?i t?o don h�ng v� tr? v? th�ng b�o ph� h?p.3. Khi s?n ph?m h?t h�ng ho?c s? lu?ng t?n kho kh�ng d�p ?ng y�u c?u, h? th?ng t? ch?i t?o don v� th�ng b�o s?n ph?m kh�ng d? t?n kho.4. Khi kh�ch h�ng g?i y�u c?u thi?u ho?c sai JWT, h? th?ng tr? v? `HTTP 401 Unauthorized`.5. Khi x?y ra l?i trong qu� tr�nh luu `Order` ho?c `OrderItem`, Database Transaction du?c rollback; kh�ng c� d? li?u don h�ng du?c luu d? dang v� gi? h�ng v?n du?c gi? nguy�n.6. Gi� v� t?ng ti?n don h�ng du?c Backend t�nh to�n t? d? li?u trong PostgreSQL, kh�ng ph? thu?c v�o gi� tr? t?ng ti?n do Frontend g?i l�n.7. Sau khi t?o don h�ng th�nh c�ng, gi? h�ng du?c l�m tr?ng v� kh�ch h�ng du?c chuy?n sang bu?c thanh to�n.8. Trong Use Case �?t h�ng, h? th?ng ch? ki?m tra kh? nang d�p ?ng t?n kho, kh�ng th?c hi?n tr? ho?c c?p nh?t s? lu?ng t?n kho.
+
+# Đặc tả Use Case: Đặt hàng (UC-04 / Order)
+
+## 1. Thông tin tổng quan
+
+| Thuộc tính | Nội dung chi tiết |
+| :--- | :--- |
+| **Mã Use Case** | `UC-04` |
+| **Tên Use Case** | Đặt hàng (`POST /orders`) |
+| **Tác nhân chính (Primary Actor)** | Khách hàng (`Customer`) |
+| **Tác nhân phụ (Secondary Actor)** | Không có |
+| **Mô tả tóm tắt** | Cho phép khách hàng đã đăng nhập xác nhận thông tin giao hàng và tạo đơn hàng từ các sản phẩm trong giỏ hàng. Hệ thống kiểm tra tính hợp lệ của sản phẩm, số lượng tồn kho, tính toán tổng tiền ở phía máy chủ và lưu thông tin đơn hàng cùng chi tiết đơn hàng vào PostgreSQL với trạng thái `PENDING`. Sau khi tạo đơn thành công, hệ thống làm trống giỏ hàng và chuyển khách hàng sang bước thanh toán. |
+| **Trigger (Sự kiện kích hoạt)** | Khách hàng truy cập giỏ hàng, nhấn nút **"Tiến hành đặt hàng"**, xác nhận thông tin giao hàng và nhấn **"Đặt hàng"**. |
+| **Tiền điều kiện (Pre-conditions)** | 1. Khách hàng đã đăng nhập và sở hữu JWT hợp lệ.<br>2. Giỏ hàng có ít nhất một sản phẩm hợp lệ.<br>3. Các sản phẩm trong giỏ hàng vẫn đang được kinh doanh.<br>4. Số lượng sản phẩm yêu cầu phải lớn hơn 0.<br>5. Hệ thống có thể kết nối với PostgreSQL. |
+| **Hậu điều kiện (Post-conditions)** | **Thành công:**<br>- Bản ghi `Order` được tạo với trạng thái `PENDING`.<br>- Các bản ghi `OrderItem` tương ứng được lưu đầy đủ.<br>- Giỏ hàng được làm trống sau khi tạo đơn thành công.<br>- Số lượng tồn kho không bị thay đổi trong Use Case này.<br>- Khách hàng nhận được mã đơn hàng để tiếp tục thanh toán.<br><br>**Thất bại:**<br>- Đơn hàng không được tạo hoặc không được lưu một phần.<br>- Giỏ hàng được giữ nguyên.<br>- Hệ thống trả về thông báo lỗi phù hợp. |
+| **Truy vết yêu cầu (Traceability)** | `FR-03`, `FR-05`, `FR-07`, `NFR-02`, `NFR-05`, `NFR-08` |
+
+---
+
+## 2. Luồng sự kiện (Flows of Events)
+
+### 2.1. Luồng chính (Main Flow - Đặt hàng thành công)
+
+1. Tại giao diện giỏ hàng trên **Next.js**, khách hàng nhấn nút **"Tiến hành đặt hàng"**.
+2. Hệ thống hiển thị danh sách sản phẩm trong giỏ hàng, bao gồm tên sản phẩm, size, topping, số lượng, đơn giá và tổng tiền tạm tính.
+3. Khách hàng kiểm tra giỏ hàng, nhập hoặc xác nhận thông tin giao hàng, ghi chú đơn hàng (nếu có) và nhấn nút **"Đặt hàng"**.
+4. Giao diện **Next.js** gửi yêu cầu `POST /orders` kèm JWT và dữ liệu đặt hàng đến máy chủ **NestJS API**.
+5. **NestJS API** xác thực JWT, xác định khách hàng thực hiện yêu cầu và kiểm tra tính hợp lệ của dữ liệu đầu vào.
+6. **NestJS API** truy vấn PostgreSQL để kiểm tra thông tin sản phẩm, size, topping, giá bán và số lượng tồn kho tương ứng với các sản phẩm trong đơn hàng.
+7. Nếu các thông tin hợp lệ và tồn kho đáp ứng đủ số lượng yêu cầu, hệ thống tính toán lại đơn giá và tổng tiền ở phía Backend, không sử dụng trực tiếp tổng tiền do Frontend gửi lên.
+8. **NestJS API** mở một Database Transaction trên PostgreSQL để thực hiện:
+   - Tạo bản ghi `Order` mới với trạng thái `PENDING`.
+   - Tạo các bản ghi `OrderItem` tương ứng với từng sản phẩm, bao gồm thông tin sản phẩm, size, topping, số lượng và đơn giá tại thời điểm đặt hàng.
+9. **NestJS API** commit Database Transaction sau khi các bản ghi được lưu thành công. Số lượng tồn kho được giữ nguyên, không thực hiện thao tác trừ hoặc cập nhật tồn kho trong Use Case này.
+10. Sau khi xác nhận tạo đơn hàng thành công, hệ thống làm trống giỏ hàng của khách hàng.
+11. **NestJS API** trả về phản hồi thành công, bao gồm mã đơn hàng (`orderId`), thông tin đơn hàng, tổng tiền và trạng thái `PENDING`.
+12. Giao diện **Next.js** hiển thị thông báo đặt hàng thành công và chuyển khách hàng sang giao diện thanh toán đơn hàng.
+
+### 2.2. Luồng thay thế (Alternative Flows)
+
+* **AF-01: Giỏ hàng trống**
+  - **Tại bước 1 hoặc bước 2 của Luồng chính:** Nếu hệ thống phát hiện giỏ hàng không có sản phẩm:
+  - Hệ thống không cho phép khách hàng tiếp tục đặt hàng.
+  - Giao diện hiển thị thông báo giỏ hàng đang trống và yêu cầu khách hàng chọn sản phẩm trước khi đặt hàng.
+
+* **AF-02: Sản phẩm hết hàng hoặc không đủ số lượng tồn kho**
+  - **Tại bước 6 của Luồng chính:** Nếu hệ thống phát hiện sản phẩm đã hết hàng hoặc số lượng tồn kho không đáp ứng số lượng khách hàng yêu cầu:
+  - **NestJS API** từ chối tạo đơn hàng và trả về thông tin sản phẩm không đủ tồn kho.
+  - Giao diện **Next.js** hiển thị thông báo cụ thể để khách hàng điều chỉnh số lượng hoặc xóa sản phẩm khỏi giỏ hàng.
+  - Khách hàng có thể cập nhật giỏ hàng và thực hiện đặt hàng lại.
+
+* **AF-03: Thông tin giao hàng không hợp lệ**
+  - **Tại bước 3 hoặc bước 5 của Luồng chính:** Nếu thông tin giao hàng bị thiếu hoặc không đúng định dạng:
+  - Hệ thống thông báo các trường thông tin chưa hợp lệ.
+  - Khách hàng được yêu cầu nhập hoặc chỉnh sửa lại thông tin giao hàng.
+  - Sau khi thông tin hợp lệ, khách hàng tiếp tục thực hiện đặt hàng.
+
+* **AF-04: Khách hàng gửi lại yêu cầu đặt hàng**
+  - **Tại bước 4 của Luồng chính:** Nếu khách hàng gửi lại yêu cầu do nhấn nút nhiều lần hoặc kết nối mạng không ổn định:
+  - Hệ thống kiểm tra cơ chế chống gửi yêu cầu trùng lặp (nếu được triển khai).
+  - Nếu yêu cầu đã được xử lý trước đó, hệ thống trả về kết quả tương ứng thay vì tạo thêm đơn hàng trùng lặp.
+
+### 2.3. Luồng ngoại lệ (Exception Flows)
+
+* **EF-01: Thiếu hoặc sai mã xác thực JWT**
+  - **Tại bước 5 của Luồng chính:** Nếu JWT bị thiếu, hết hạn hoặc không hợp lệ:
+  - **NestJS API** từ chối yêu cầu và trả về mã lỗi `HTTP 401 Unauthorized`.
+  - Giao diện **Next.js** thông báo phiên đăng nhập đã hết hạn và yêu cầu khách hàng đăng nhập lại.
+
+* **EF-02: Sản phẩm không tồn tại hoặc không còn được kinh doanh**
+  - **Tại bước 6 của Luồng chính:** Nếu mã sản phẩm không tồn tại, sản phẩm đã bị ngừng kinh doanh hoặc size/topping không hợp lệ:
+  - **NestJS API** từ chối yêu cầu và trả về thông tin lỗi tương ứng (`HTTP 404` hoặc `HTTP 400`).
+  - Hệ thống không tạo đơn hàng.
+  - Khách hàng được yêu cầu kiểm tra và cập nhật lại giỏ hàng.
+
+* **EF-03: Lỗi kết nối PostgreSQL hoặc lỗi máy chủ**
+  - **Tại bước 8 hoặc bước 9 của Luồng chính:** Nếu xảy ra lỗi trong quá trình ghi dữ liệu:
+  - **NestJS API** thực hiện rollback Database Transaction.
+  - Các bản ghi `Order` và `OrderItem` không bị lưu dở dang.
+  - Giỏ hàng không bị làm trống.
+  - Hệ thống trả về thông báo lỗi và cho phép khách hàng thử lại sau.
+
+* **EF-04: Dữ liệu đơn hàng không còn hợp lệ tại thời điểm xử lý**
+  - **Tại bước 6 hoặc bước 7 của Luồng chính:** Nếu giá sản phẩm hoặc thông tin sản phẩm đã thay đổi so với dữ liệu trong giỏ hàng:
+  - Hệ thống sử dụng thông tin giá hiện tại từ PostgreSQL để tính toán lại đơn hàng.
+  - Nếu có chênh lệch, hệ thống thông báo cho khách hàng xác nhận lại thông tin và tổng tiền trước khi tiếp tục đặt hàng.
+
+---
+
+## 3. Liên kết sơ đồ & Tiêu chí nghiệm thu (Acceptance Criteria)
+
+- **Sơ đồ Use Case:** `docs/diagrams/usecase-order.svg` (Mã nguồn: `docs/diagrams/usecase-order.puml`).
+- **Sơ đồ tuần tự liên quan:** `docs/diagrams/sequence-order.svg`.
+- **Sơ đồ hoạt động liên quan:** `docs/diagrams/activity-order.svg`.
+- **API tương ứng:** `POST /orders`.
+- **Integration Test:** `INT-T03` – Kiểm thử tích hợp chức năng tạo đơn hàng.
+
+**Tiêu chí nghiệm thu kiểm thử (Test Criteria):**
+
+1. Khách hàng có JWT hợp lệ và giỏ hàng chứa sản phẩm hợp lệ có thể tạo đơn hàng thành công; hệ thống lưu đúng một bản ghi `Order` cùng các `OrderItem` tương ứng với trạng thái `PENDING`.
+2. Khi giỏ hàng trống, hệ thống từ chối tạo đơn hàng và trả về thông báo phù hợp.
+3. Khi sản phẩm hết hàng hoặc số lượng tồn kho không đáp ứng yêu cầu, hệ thống từ chối tạo đơn và thông báo sản phẩm không đủ tồn kho.
+4. Khi khách hàng gửi yêu cầu thiếu hoặc sai JWT, hệ thống trả về `HTTP 401 Unauthorized`.
+5. Khi xảy ra lỗi trong quá trình lưu `Order` hoặc `OrderItem`, Database Transaction được rollback; không có dữ liệu đơn hàng được lưu dở dang và giỏ hàng vẫn được giữ nguyên.
+6. Giá và tổng tiền đơn hàng được Backend tính toán từ dữ liệu trong PostgreSQL, không phụ thuộc vào giá trị tổng tiền do Frontend gửi lên.
+7. Sau khi tạo đơn hàng thành công, giỏ hàng được làm trống và khách hàng được chuyển sang bước thanh toán.
+8. Trong Use Case Đặt hàng, hệ thống chỉ kiểm tra khả năng đáp ứng tồn kho, không thực hiện trừ hoặc cập nhật số lượng tồn kho.
