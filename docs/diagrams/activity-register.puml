@@ -1,0 +1,82 @@
+@startuml
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam ArrowThickness 1.5
+skinparam linetype ortho
+skinparam nodesep 25
+skinparam ranksep 25
+
+skinparam activity {
+    BackgroundColor #EAF2F8
+    BorderColor #2874A6
+    DiamondBackgroundColor #FDEBD0
+    DiamondBorderColor #CA6F1E
+}
+
+|KHÁCH HÀNG|
+start
+:Bấm Đăng nhập trên thanh điều hướng;
+:Chọn "Chưa có tài khoản? Đăng ký";
+:Nhập họ tên, email và mật khẩu;
+:Bấm Tạo tài khoản;
+
+|HỆ THỐNG|
+if (Form hợp lệ?\n(đủ trường, email đúng định dạng,\nmật khẩu >= 8 ký tự)) then (Không)
+    :Trình duyệt báo lỗi trên form;
+    |KHÁCH HÀNG|
+    :Chỉnh sửa thông tin;
+    stop
+else (Có)
+endif
+
+:Gửi yêu cầu đăng ký đến API;
+
+|API|
+:Kiểm tra dữ liệu (DTO);
+
+if (Dữ liệu hợp lệ?) then (Không)
+    |HỆ THỐNG|
+    :Hiển thị thông báo lỗi;
+    stop
+else (Có)
+endif
+
+|API|
+:Cắt khoảng trắng họ tên;
+
+if (Họ tên không rỗng?) then (Không)
+    |HỆ THỐNG|
+    :Hiển thị thông báo "Name required";
+    stop
+else (Có)
+endif
+
+|API|
+:Chuẩn hóa email về chữ thường;
+:Băm mật khẩu (bcrypt);
+:Lưu người dùng mới (vai trò CUSTOMER);
+
+if (Email đã tồn tại?) then (Có)
+    |HỆ THỐNG|
+    :Hiển thị thông báo "Email already registered";
+    stop
+else (Không)
+endif
+
+|API|
+:Tạo JWT (sub, email, role);
+:Trả accessToken và thông tin người dùng\n(không gồm mật khẩu);
+
+|HỆ THỐNG|
+:Lưu token và thông tin người dùng\nvào localStorage;
+:Cập nhật trạng thái đã đăng nhập;
+:Đóng form đăng ký;
+:Hiển thị lời chào "Xin chào <tên>";
+
+|KHÁCH HÀNG|
+:Nhận thông báo đăng ký thành công;
+stop
+
+@enduml

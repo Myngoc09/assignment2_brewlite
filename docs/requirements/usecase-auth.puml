@@ -1,0 +1,31 @@
+
+@startuml
+left to right direction
+
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam roundCorner 10
+skinparam linetype spline
+skinparam ArrowThickness 1.5
+skinparam shadowing false
+
+actor "Khách hàng" as Customer
+
+rectangle {
+
+    usecase "Đăng ký tài khoản" as UC_Register
+    usecase "Đăng nhập" as UC_Login
+    usecase "Kiểm tra dữ liệu đầu vào\n(email, mật khẩu, họ tên)" as UC_Validate
+    usecase "Cấp phiên đăng nhập (JWT)" as UC_Session
+
+}
+
+Customer --> UC_Register
+Customer --> UC_Login
+
+UC_Register ..> UC_Validate : <<include>>
+UC_Login ..> UC_Validate : <<include>>
+UC_Register ..> UC_Session : <<include>>
+UC_Login ..> UC_Session : <<include>>
+
+@enduml
