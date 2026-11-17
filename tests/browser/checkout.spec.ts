@@ -48,3 +48,55 @@ test('customer orders a customized drink and tracks the confirmation', async ({ 
   await expect(page.getByRole('listitem').filter({ hasText: 'PAYMENT_FAILED' })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'PAID' })).toBeVisible();
 });
+
+test('customer signs in again and resumes VNPAY on the same order after a 401', async ({ page, request }) => {
+  const email = `browser-${randomUUID()}@brewlite.local`;
+  const password = 'BrewLite123!';
+  const registration = await request.post('/api/auth/register', {
+    data: { email, password, name: 'QR Browser Customer' },
+  });
+  expect(registration.ok()).toBe(true);
+  const { accessToken, user } = await registration.json();
+  await page.addInitScript(({ accessToken, user }) => {
+    if (localStorage.getItem('token')) return;
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('user', JSON.stringify(user));
+  }, { accessToken, user });
+
+  const qrRequests: string[] = [];
+  await page.route('**/api/orders/*/vnpay', async route => {
+    const url = new URL(route.request().url());
+    const orderId = url.pathname.split('/')[3];
+    qrRequests.push(orderId);
+    if (qrRequests.length === 1) {
+      await route.fulfill({ status: 401, json: { message: 'Invalid or expired token' } });
+    } else {
+      await route.fulfill({ json: {
+        paymentUrl: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
+        qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE2sAAAAASUVORK5CYII=',
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      } });
+    }
+  });
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Cloud Matcha' }).click();
+  await page.getByRole('button', { name: /Thêm vào giỏ/ }).click();
+  await page.getByRole('button', { name: /Giỏ hàng/ }).click();
+  await page.getByRole('button', { name: /^Thanh toán/ }).click();
+  await page.getByLabel('Phương thức').selectOption('VNPAY_QR');
+  await page.getByLabel('Mã ưu đãi').fill('BREW10');
+  await page.getByRole('button', { name: 'Xác nhận thanh toán' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Phiên đăng nhập đã hết hạn' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Mật khẩu').fill(password);
+  await page.locator('form').getByRole('button', { name: 'Đăng nhập' }).click();
+  await expect(page.getByLabel('Phương thức')).toHaveValue('VNPAY_QR');
+  await expect(page.getByLabel('Mã ưu đãi')).toHaveValue('BREW10');
+  await page.getByRole('button', { name: 'Xác nhận thanh toán' }).click();
+  const payment = page.getByRole('dialog', { name: 'Thanh toán VNPAY' });
+  await expect(payment.getByRole('img', { name: 'Mã QR mở trang thanh toán VNPAY' })).toBeVisible();
+  await expect(payment).toContainText('Đang chờ backend');
+  expect(qrRequests).toEqual([qrRequests[0], qrRequests[0]]);
+});

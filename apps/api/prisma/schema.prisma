@@ -28,6 +28,7 @@ enum PaymentStatus {
 enum PaymentMethod {
   MOCK_WALLET
   MOCK_CARD
+  VNPAY_QR
 }
 enum LoyaltyType {
   EARN

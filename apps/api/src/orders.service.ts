@@ -165,6 +165,10 @@ export class OrdersService {
       if (!unpaidStatuses.includes(current.status)) {
         throw new ConflictException('Order is not payable');
       }
+      const qrAttempt = await tx.payment.findFirst({
+        where: { orderId: id, method: 'VNPAY_QR' }, select: { id: true },
+      });
+      if (qrAttempt) throw new ConflictException('Đơn này thanh toán qua VNPAY.');
       const attemptTime = Date.now();
       const retry = current.status === OrderStatus.PAYMENT_FAILED;
       if (retry) {
@@ -261,6 +265,11 @@ export class OrdersService {
     try {
       if (status === 'CANCELLED') {
         return await this.db.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} FOR UPDATE`;
+          const pendingQr = await tx.payment.findFirst({
+            where: { orderId: id, method: 'VNPAY_QR', status: 'PENDING' }, select: { id: true },
+          });
+          if (pendingQr) throw new ConflictException('Đơn đang chờ xác nhận từ VNPAY.');
           const cancelled = await tx.order.update({
             where: { id, ...owner, status: { in: staff ? statusTransitions.CANCELLED : unpaidStatuses } },
             data: { status, statusHistory: { create: { status, changedById: userId } } },

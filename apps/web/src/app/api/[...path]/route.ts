@@ -11,8 +11,13 @@ async function forward(req: NextRequest, ctx: Ctx) {
   }
   const method = req.method;
   const body = ['GET', 'HEAD'].includes(method) ? undefined : await req.arrayBuffer();
-  const upstream = await fetch(url, { method, headers, body, cache: 'no-store' });
+  const isVnpayReturn = path.join('/') === 'payments/vnpay/return';
+  const upstream = await fetch(url, {
+    method, headers, body, cache: 'no-store', redirect: isVnpayReturn ? 'manual' : 'follow',
+  });
   const outHeaders = new Headers({ 'cache-control': 'no-store' });
+  const location = isVnpayReturn && upstream.headers.get('location');
+  if (location) outHeaders.set('location', location);
   const type = upstream.headers.get('content-type');
   if (type) outHeaders.set('content-type', type);
   if (process.env.BREWLITE_REVISION) {
