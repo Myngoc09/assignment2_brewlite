@@ -1,0 +1,82 @@
+@startuml sequence-payment
+autonumber
+skinparam shadowing false
+skinparam maxMessageSize 220
+
+actor "Khách hàng" as Customer
+participant "Next.js\n(Web UI)" as Web
+participant "NestJS\n(API Server)" as API
+database "PostgreSQL\n(Prisma)" as DB
+participant "Payment Simulator" as Gateway
+
+Customer -> Web : Chọn phương thức (MOCK_WALLET / MOCK_CARD) & bấm Thanh toán
+activate Web
+
+Web -> Web : Sinh UUID mới làm Idempotency-Key\n(nếu là lần thử mới)
+Web -> API : POST /api/payments\n(JWT, orderId, method, Idempotency-Key)
+activate API
+
+API -> API : Xác thực JWT (AuthGuard)
+
+alt JWT không hợp lệ hoặc thiếu
+  API --> Web : 401 Unauthorized
+  Web --> Customer : Chuyển hướng trang Đăng nhập
+else JWT hợp lệ
+  API -> DB : Tìm Order theo orderId & userId
+  activate DB
+  DB --> API : Trả về thông tin Order
+  deactivate DB
+
+  API -> DB : Kiểm tra Payment theo (orderId, Idempotency-Key)
+  activate DB
+  DB --> API : Kết quả kiểm tra Payment
+  deactivate DB
+
+  alt Phát lại cùng Idempotency-Key (Đã tồn tại giao dịch)
+    API --> Web : 200 OK (Trả về kết quả giao dịch Payment cũ)
+    Web --> Customer : Hiển thị trạng thái giao dịch đã ghi nhận
+  else Giao dịch mới (Order đang PENDING hoặc PAYMENT_FAILED)
+    API -> DB : INSERT Payment (status = PENDING, idempotencyKey)
+    activate DB
+    DB --> API : Đã tạo bản ghi Payment
+    deactivate DB
+
+    API -> Gateway : Yêu cầu thanh toán mô phỏng\n(totalCents, method, idempotencyKey)
+    activate Gateway
+    Gateway --> API : Trả về kết quả (SUCCEEDED / FAILED, providerReference)
+    deactivate Gateway
+
+    alt Thanh toán thành công (SUCCEEDED)
+      API -> DB : BEGIN TRANSACTION
+      activate DB
+      API -> DB : UPDATE Payment SET status = SUCCEEDED, providerReference
+      API -> DB : UPDATE Order SET status = PAID
+      API -> DB : INSERT OrderStatusHistory (status = PAID)
+      API -> DB : INSERT LoyaltyTransaction (type = EARN, points)
+      API -> DB : COMMIT TRANSACTION
+      DB --> API : Giao dịch hoàn tất
+      deactivate DB
+
+      API --> Web : 200 OK (Order PAID, Payment SUCCEEDED)
+      Web -> Web : Xóa dữ liệu giỏ hàng (Cart Store)
+      Web --> Customer : Hiển thị màn hình Xác nhận & Mã đơn hàng
+    else Thanh toán thất bại (FAILED)
+      API -> DB : BEGIN TRANSACTION
+      activate DB
+      API -> DB : UPDATE Payment SET status = FAILED
+      API -> DB : UPDATE Order SET status = PAYMENT_FAILED
+      API -> DB : INSERT OrderStatusHistory (status = PAYMENT_FAILED)
+      API -> DB : COMMIT TRANSACTION
+      DB --> API : Đã lưu trạng thái lỗi
+      deactivate DB
+
+      API --> Web : 402 Payment Required / 400 Bad Request
+      Web -> Web : Giữ nguyên giỏ hàng để khách thử lại
+      Web --> Customer : Thông báo lỗi thanh toán & nút "Thử lại"
+    end
+  end
+end
+
+deactivate API
+deactivate Web
+@enduml

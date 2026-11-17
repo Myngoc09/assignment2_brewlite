@@ -1,0 +1,36 @@
+@startuml usecase-payment
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor "Khách hàng" as Customer
+actor "Payment Simulator" as Gateway <<System>>
+
+rectangle "Phân hệ Thanh toán (BrewLite)" {
+  usecase "Thanh toán đơn hàng\n(POST /api/payments)" as UC_Pay
+  usecase "Chọn phương thức thanh toán\n(MOCK_WALLET / MOCK_CARD)" as UC_Method
+  usecase "Kiểm tra Idempotency-Key\n& trạng thái đơn (PENDING/FAILED)" as UC_Idem
+  usecase "Xử lý giao dịch mô phỏng" as UC_Process
+  usecase "Cập nhật trạng thái PAID\n& lưu lịch sử đơn" as UC_Paid
+  usecase "Ghi nhận điểm thưởng\n(LoyaltyTransaction)" as UC_Loyalty
+  usecase "Ghi nhận thanh toán thất bại\n(PAYMENT_FAILED)" as UC_Fail
+}
+
+Customer --> UC_Pay
+
+UC_Pay ..> UC_Method : <<include>>
+UC_Pay ..> UC_Idem : <<include>>
+UC_Pay ..> UC_Process : <<include>>
+
+UC_Process --> Gateway
+
+UC_Paid ..> UC_Pay : <<extend>>\n[Thanh toán thành công]
+UC_Paid ..> UC_Loyalty : <<include>>
+UC_Fail ..> UC_Pay : <<extend>>\n[Thanh toán thất bại]
+
+note right of UC_Idem
+  - Nếu trùng Idempotency-Key trên cùng đơn:
+    trả về kết quả giao dịch cũ (FR-06).
+  - Nếu thử lại lần mới: yêu cầu key mới.
+end note
+@enduml
