@@ -1,0 +1,113 @@
+@startuml activity-orderstatus
+skinparam shadowing false
+skinparam ConditionEndStyle hline
+
+|Nhân viên / Quản lý / Khách hàng|
+start
+:Chọn đơn hàng cần xử lý;
+:Chọn trạng thái mới\n(PREPARING / READY / COMPLETED / CANCELLED);
+:Gửi PATCH /api/orders/{id}/status kèm JWT;
+
+|Hệ thống (NestJS API / PostgreSQL)|
+:Xác thực JWT, đọc userId và vai trò;
+
+if (JWT hợp lệ?) then (Không)
+  :Trả lỗi 401 Unauthorized;
+  |Nhân viên / Quản lý / Khách hàng|
+  :Nhận thông báo cần đăng nhập lại;
+  stop
+else (Có)
+endif
+
+|Hệ thống (NestJS API / PostgreSQL)|
+:Kiểm tra giá trị status\n(PREPARING, READY, COMPLETED, CANCELLED);
+
+if (Giá trị status hợp lệ?) then (Không)
+  :Trả lỗi 400 Bad Request;
+  |Nhân viên / Quản lý / Khách hàng|
+  :Nhận thông báo dữ liệu không hợp lệ;
+  stop
+else (Có)
+endif
+
+|Hệ thống (NestJS API / PostgreSQL)|
+if (Là khách hàng và status khác CANCELLED?) then (Có)
+  :Trả lỗi 403 Forbidden\n(Staff role required);
+  |Nhân viên / Quản lý / Khách hàng|
+  :Nhận thông báo không đủ quyền;
+  stop
+else (Không)
+endif
+
+|Hệ thống (NestJS API / PostgreSQL)|
+:Tìm đơn theo id\n(khách hàng: thêm điều kiện userId);
+
+if (Tìm thấy đơn?) then (Không)
+  :Trả lỗi 404 Not Found;
+  |Nhân viên / Quản lý / Khách hàng|
+  :Nhận thông báo không tìm thấy đơn;
+  stop
+else (Có)
+endif
+
+|Hệ thống (NestJS API / PostgreSQL)|
+if (status = CANCELLED?) then (Có - hủy đơn)
+  :Mở transaction\nvà khóa dòng Order (FOR UPDATE);
+
+  if (Có thanh toán VNPAY_QR đang PENDING?) then (Có)
+    :Rollback, trả lỗi 409 Conflict\n(Đơn đang chờ xác nhận từ VNPAY);
+    |Nhân viên / Quản lý / Khách hàng|
+    :Nhận thông báo đơn đang chờ VNPAY;
+    stop
+  else (Không)
+  endif
+
+  |Hệ thống (NestJS API / PostgreSQL)|
+  :Cập nhật Order sang CANCELLED\nnếu trạng thái hiện tại cho phép hủy;
+  note right
+    Trạng thái cho phép hủy:
+    - Nhân viên: PENDING, PAYMENT_FAILED, PAID
+    - Khách hàng: PENDING, PAYMENT_FAILED
+  end note
+
+  if (Cập nhật được?) then (Không)
+    :Rollback, trả lỗi 409 Conflict\n(Order cannot move to that status);
+    |Nhân viên / Quản lý / Khách hàng|
+    :Nhận thông báo không thể hủy đơn;
+    stop
+  else (Có)
+  endif
+
+  |Hệ thống (NestJS API / PostgreSQL)|
+  :Ghi OrderStatusHistory (CANCELLED);
+  :Hoàn trả tồn kho sản phẩm;
+  :Giải phóng nguyên liệu\n(StockMovement RELEASE);
+  :Commit transaction;
+else (Không - cập nhật tiến độ)
+  :Cập nhật Order sang trạng thái mới\nnếu trạng thái hiện tại là bước trước hợp lệ;
+  note right
+    Bước trước hợp lệ:
+    - PREPARING ← PAID
+    - READY ← PREPARING
+    - COMPLETED ← READY
+  end note
+
+  if (Cập nhật được?) then (Không)
+    :Trả lỗi 409 Conflict\n(Order cannot move to that status);
+    |Nhân viên / Quản lý / Khách hàng|
+    :Nhận thông báo không thể chuyển sang trạng thái đó;
+    stop
+  else (Có)
+  endif
+
+  |Hệ thống (NestJS API / PostgreSQL)|
+  :Ghi OrderStatusHistory\n(trạng thái mới, changedById);
+endif
+
+|Hệ thống (NestJS API / PostgreSQL)|
+:Trả 200 OK kèm đơn đã cập nhật;
+
+|Nhân viên / Quản lý / Khách hàng|
+:Xem trạng thái mới của đơn;
+stop
+@enduml
