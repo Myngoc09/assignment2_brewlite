@@ -19,6 +19,9 @@ services:
       JWT_SECRET: local-only-secret-change-before-deploy-123456
       WEB_ORIGIN: "http://localhost:${BREWLITE_WEB_PORT:-3000}"
       API_PORT: 3001
+      VNPAY_TMN_CODE: "${VNPAY_TMN_CODE:-}"
+      VNPAY_HASH_SECRET: "${VNPAY_HASH_SECRET:-}"
+      VNPAY_RETURN_URL: "${VNPAY_RETURN_URL:-http://localhost:3000/}"
     ports: ["${BREWLITE_API_PORT:-3001}:3001"]
     depends_on: { migrate: { condition: service_completed_successfully } }
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 10s, timeout: 3s, retries: 10 }

@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { createHmac, randomUUID } from 'node:crypto';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -95,6 +95,79 @@ describe('Checkout with PostgreSQL', () => {
     await client().patch(`${path}/status`).set(staff).send({ status: 'COMPLETED' }).expect(200);
     await client().patch(`${path}/status`).set(staff).send({ status: 'CANCELLED' }).expect(409);
   });
+
+  it('settles VNPAY QR through a verified callback and credits loyalty once', async () => {
+    const secret = 'sandbox-integration-test-key';
+    const env = jest.replaceProperty(process, 'env', {
+      ...process.env,
+      VNPAY_TMN_CODE: 'TESTQR01',
+      VNPAY_HASH_SECRET: secret,
+      VNPAY_RETURN_URL: 'http://localhost:3000/',
+    });
+    try {
+      const item = await firstMenuItem();
+      const session = await client().post('/api/auth/register')
+        .send({ email: `qr-${randomUUID()}@brewlite.local`, name: 'QR Customer', password: 'BrewLite123!' })
+        .expect(201);
+      const customer = { Authorization: `Bearer ${session.body.accessToken}` };
+      const { body: order } = await client().post('/api/orders').set(customer).send({ items: [item] }).expect(201);
+      const path = `/api/orders/${order.id}`;
+      const start = async () => {
+        const { body } = await client().post(`${path}/vnpay`).set(customer).expect(201);
+        expect(body.qrCode).toMatch(/^data:image\/png;base64,/);
+        expect(Date.parse(body.expiresAt)).toBeGreaterThan(Date.now());
+        return new URL(body.paymentUrl);
+      };
+      const callbackQuery = (url: URL, code: string, amount: string, valid = true) => {
+        const params = new URLSearchParams({
+          vnp_Amount: amount, vnp_ResponseCode: code, vnp_TmnCode: 'TESTQR01',
+          vnp_TransactionNo: '12345678', vnp_TransactionStatus: code,
+          vnp_TxnRef: url.searchParams.get('vnp_TxnRef')!,
+        });
+        params.sort();
+        const signature = createHmac('sha512', secret).update(params.toString()).digest('hex');
+        params.set('vnp_SecureHash', valid ? signature : '0'.repeat(128));
+        return params;
+      };
+      const notify = async (url: URL, code: string, amount: string, valid = true) => {
+        const response = await client().get(`/api/payments/vnpay/ipn?${callbackQuery(url, code, amount, valid)}`).expect(200);
+        return response.body.RspCode;
+      };
+      const first = await start();
+      const amount = String(order.totalCents * 100);
+      expect(first.hostname).toBe('sandbox.vnpayment.vn');
+      expect(first.searchParams.has('vnp_BankCode')).toBe(false);
+      expect(first.searchParams.get('vnp_ReturnUrl')).toBe('http://localhost:3000/api/payments/vnpay/return');
+      expect(first.searchParams.get('vnp_Amount')).toBe(amount);
+      expect((await start()).searchParams.get('vnp_TxnRef')).toBe(first.searchParams.get('vnp_TxnRef'));
+      await client().post('/api/payments').set(customer).set('Idempotency-Key', randomUUID())
+        .send({ orderId: order.id, method: 'MOCK_WALLET' }).expect(409);
+      await client().patch(`${path}/status`).set(customer).send({ status: 'CANCELLED' }).expect(409);
+      expect(await notify(first, '00', amount, false)).toBe('97');
+      expect(await notify(first, '00', '1')).toBe('04');
+      expect((await client().get(path).set(customer)).body.status).toBe('PENDING');
+      expect(await notify(first, '24', amount)).toBe('00');
+      expect((await client().get(path).set(customer)).body.status).toBe('PAYMENT_FAILED');
+
+      const retry = await start();
+      expect(retry.searchParams.get('vnp_TxnRef')).not.toBe(first.searchParams.get('vnp_TxnRef'));
+      const returned = `/api/payments/vnpay/return?${callbackQuery(retry, '00', amount)}`;
+      await client().get(`/api/payments/vnpay/return?${callbackQuery(retry, '00', amount, false)}`)
+        .expect(302).expect('Location', 'http://localhost:3000/?vnpayInvalid=1');
+      expect((await client().get(path).set(customer)).body.status).toBe('PENDING');
+      await client().get(returned)
+        .expect(302).expect('Location', `http://localhost:3000/?vnpayOrder=${order.id}`);
+      expect(await notify(retry, '00', amount)).toBe('02');
+      const { body: settled } = await client().get(path).set(customer).expect(200);
+      expect(settled.status).toBe('PAID');
+      expect(settled.statusHistory.map((entry: { status: string }) => entry.status))
+        .toEqual(['PENDING', 'PAYMENT_FAILED', 'PENDING', 'PAID']);
+      await client().get('/api/orders/loyalty').set(customer)
+        .expect(200, { points: Math.floor(order.totalCents / 10000) });
+    } finally {
+      env.restore();
+    }
+  }, 15000);
 
   it('sells the last unit only once when two customers order concurrently', async () => {
     const db = app.get(PrismaService);

@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import Image from 'next/image';
-import {api} from '@/lib/api';
+import {api, ApiError} from '@/lib/api';
 type S={id:string;
 name:string;
 priceCents:number;
@@ -26,6 +26,7 @@ size:S;
 toppings:T[];
 quantity:number};
 type PaymentMethod = 'MOCK_WALLET' | 'MOCK_CARD';
+type CheckoutMethod = PaymentMethod | 'VNPAY_QR';
 type Order = {
   id: string;
   orderNumber: string;
@@ -35,10 +36,12 @@ type Order = {
   discountCents: number;
   items: { id: string; productName: string; size: string; toppings: string[]; quantity: number }[];
   statusHistory: { id: string; status: string; changedAt: string }[];
+  payments?: { method: CheckoutMethod; status: string }[];
 };
 type PaymentResult = { payment: { status: 'SUCCEEDED' | 'FAILED' }; order: Order };
+type VnpayPayment = { paymentUrl: string; qrCode: string; expiresAt: string };
 type PaymentAttempt = { id: string; method: PaymentMethod; key: string; simulate: 'success' | 'fail' };
-type CheckoutDraft = { id: string; cart: L[]; promotion: string };
+type CheckoutDraft = { id: string; userId: string; cart: L[]; promotion: string };
 
 function createPaymentKey() {
   const random = crypto.getRandomValues(new Uint32Array(4));
@@ -46,18 +49,39 @@ function createPaymentKey() {
 }
 
 const money=(n:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(n);
-export default function Home(){const[products,setProducts]=useState<P[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[cart,setCart]=useState<L[]>([]),[selection,setSelection]=useState<P|null>(null),[size,setSize]=useState<S|null>(null),[tops,setTops]=useState<T[]>([]),[category,setCategory]=useState('Tất cả'),[search,setSearch]=useState(''),[cartOpen,setCartOpen]=useState(false),[auth,setAuth]=useState<'login'|'register'|null>(null),[user,setUser]=useState<any>(null),[orders,setOrders]=useState<Order[]>([]),[notice,setNotice]=useState(''),[simulateFail,setSimulateFail]=useState(false),[paymentMethod,setPaymentMethod]=useState<'MOCK_WALLET'|'MOCK_CARD'>('MOCK_WALLET');
+export default function Home(){const[products,setProducts]=useState<P[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[cart,setCart]=useState<L[]>([]),[selection,setSelection]=useState<P|null>(null),[size,setSize]=useState<S|null>(null),[tops,setTops]=useState<T[]>([]),[category,setCategory]=useState('Tất cả'),[search,setSearch]=useState(''),[cartOpen,setCartOpen]=useState(false),[auth,setAuth]=useState<'login'|'register'|null>(null),[user,setUser]=useState<any>(null),[orders,setOrders]=useState<Order[]>([]),[notice,setNotice]=useState(''),[simulateFail,setSimulateFail]=useState(false),[paymentMethod,setPaymentMethod]=useState<CheckoutMethod>('MOCK_WALLET');
 const [ordersOpen, setOrdersOpen] = useState(false);
+const [vnpayOrderId, setVnpayOrderId] = useState<string | null>(null);
+const [vnpayResult, setVnpayResult] = useState<Order | null>(null);
+const [vnpayError, setVnpayError] = useState('');
+const [vnpayPayment, setVnpayPayment] = useState<VnpayPayment | null>(null);
+const [vnpayExpired, setVnpayExpired] = useState(false);
 const [loyaltyPoints, setLoyaltyPoints] = useState(0);
 const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
 const [confirmation, setConfirmation] = useState<Order | null>(null);
 const [checkoutOpen, setCheckoutOpen] = useState(false);
 const [checkoutError, setCheckoutError] = useState('');
+const [sessionExpired, setSessionExpired] = useState(false);
 const [paying, setPaying] = useState(false);
 const paymentLock = useRef(false);
 const checkoutDraft = useRef<CheckoutDraft | null>(null);
 const paymentAttempts = useRef(new Map<string, PaymentAttempt>());
 const [promotionCode, setPromotionCode] = useState('');
+const handleSessionError = useCallback((error: unknown) => {
+  if (!(error instanceof ApiError) || error.status !== 401) return false;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  setUser(null);
+  setOrders([]);
+  setOrdersOpen(false);
+  setLoyaltyPoints(0);
+  setTrackedOrder(null);
+  setVnpayResult(null);
+  setVnpayError('');
+  setSessionExpired(true);
+  setAuth('login');
+  return true;
+}, []);
 const loadMenu = useCallback(async (signal?: AbortSignal) => {
   try {
     const menu = await api<P[]>('/products', { signal });
@@ -84,6 +108,55 @@ useEffect(() => {
   });
   return () => controller.abort();
 }, [loadMenu]);
+useEffect(() => {
+  const query = new URLSearchParams(window.location.search);
+  const orderId = query.get('vnpayOrder');
+  if (orderId) queueMicrotask(() => setVnpayOrderId(orderId));
+  else if (query.has('vnpayInvalid')) queueMicrotask(() => setVnpayError('Không xác minh được kết quả từ VNPAY.'));
+}, []);
+useEffect(() => {
+  if (!vnpayPayment) return;
+  const delay = Math.max(0, Date.parse(vnpayPayment.expiresAt) - Date.now());
+  const timer = setTimeout(() => setVnpayExpired(true), delay);
+  return () => clearTimeout(timer);
+}, [vnpayPayment]);
+useEffect(() => {
+  if (!vnpayOrderId || !user) return;
+  const orderPath = `/orders/${encodeURIComponent(vnpayOrderId)}`;
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout>;
+  async function checkStatus() {
+    try {
+      const order = await api<Order>(orderPath, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setVnpayError('');
+      setVnpayResult(order);
+      if (order.status === 'PENDING') timer = setTimeout(checkStatus, 2500);
+      else if (order.payments?.some(payment => payment.method === 'VNPAY_QR' && payment.status === 'SUCCEEDED')) {
+        const draft = checkoutDraft.current;
+        if (draft?.id === order.id) {
+          setCart(current => current === draft.cart ? [] : current);
+          setPromotionCode(current => current.trim().toUpperCase() === draft.promotion ? '' : current);
+          checkoutDraft.current = null;
+        }
+        void loadMenu(controller.signal);
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (handleSessionError(error)) return;
+      setVnpayError((error as Error).message);
+      timer = setTimeout(checkStatus, 5000);
+    }
+  }
+  void checkStatus();
+  return () => {
+    controller.abort();
+    clearTimeout(timer);
+  };
+}, [vnpayOrderId, user, loadMenu, handleSessionError]);
 const categories=['Tất cả',...Array.from(new Set(products.map(x=>x.category)))],visible=useMemo(()=>products.filter(x=>(category==='Tất cả'||x.category===category)&&x.name.toLowerCase().includes(search.toLowerCase())),[products,category,search]),total=cart.reduce((n,x)=>n+(x.size.priceCents+x.toppings.reduce((a,t)=>a+t.priceCents,0))*x.quantity,0);
 async function open(p: P) {
   try {
@@ -130,20 +203,51 @@ try{const d:any=await api(auth==='register'?'/auth/register':'/auth/login',{meth
 localStorage.setItem('token',d.accessToken);
 localStorage.setItem('user',JSON.stringify(d.user));
 setUser(d.user);
+setSessionExpired(false);
 setAuth(null);
 toast('Xin chào '+d.user.name)}catch(e:any){toast(e.message)}}
 function authHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` };
 }
+async function openVnpay(id: string) {
+  const payment = await api<VnpayPayment>(`/orders/${id}/vnpay`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  setVnpayResult(null);
+  setVnpayError('');
+  setVnpayPayment(payment);
+  setVnpayExpired(false);
+  setVnpayOrderId(id);
+  setCheckoutOpen(false);
+  setCartOpen(false);
+  setOrdersOpen(false);
+}
+function closeVnpayResult() {
+  window.history.replaceState(null, '', window.location.pathname);
+  setVnpayOrderId(null);
+  setVnpayResult(null);
+  setVnpayError('');
+  setVnpayPayment(null);
+  setVnpayExpired(false);
+}
+function closeCartOrAuth() {
+  if (auth) setAuth(null);
+  else setCartOpen(false);
+}
 async function checkout() {
   if (paymentLock.current || !cart.length) return;
+  if (!user) {
+    setAuth('login');
+    return;
+  }
   paymentLock.current = true;
   setPaying(true);
   setCheckoutError('');
   try {
     const promotion = promotionCode.trim().toUpperCase();
     let draft = checkoutDraft.current;
-    if (!draft || draft.cart !== cart || draft.promotion !== promotion) {
+    if (!draft || draft.userId !== user.id || draft.cart !== cart || draft.promotion !== promotion) {
       const order = await api<Order>('/orders', {
         method: 'POST',
         headers: authHeaders(),
@@ -155,8 +259,12 @@ async function checkout() {
           promotionCode: promotion || undefined,
         }),
       });
-      draft = { id: order.id, cart, promotion };
+      draft = { id: order.id, userId: user.id, cart, promotion };
       checkoutDraft.current = draft;
+    }
+    if (paymentMethod === 'VNPAY_QR') {
+      await openVnpay(draft.id);
+      return;
     }
     const attempt = paymentAttempts.current.get(draft.id) ?? {
       id: draft.id, method: paymentMethod, key: createPaymentKey(),
@@ -164,7 +272,7 @@ async function checkout() {
     };
     await payOrder(attempt);
   } catch (error) {
-    setCheckoutError((error as Error).message);
+    if (!handleSessionError(error)) setCheckoutError((error as Error).message);
   } finally {
     paymentLock.current = false;
     setPaying(false);
@@ -190,7 +298,7 @@ async function loadOrders() {
     setLoyaltyPoints(loyalty.points);
     setOrdersOpen(true);
   } catch (e: any) {
-    toast(e.message);
+    if (!handleSessionError(e)) toast(e.message);
   }
 }
 async function trackOrder(id: string) {
@@ -199,7 +307,7 @@ async function trackOrder(id: string) {
     setTrackedOrder(order);
     setOrders(current => current.map(entry => entry.id === id ? order : entry));
   } catch (e: any) {
-    toast(e.message);
+    if (!handleSessionError(e)) toast(e.message);
   }
 }
 async function payOrder(attempt: PaymentAttempt) {
@@ -233,12 +341,16 @@ async function retryPayment(order: Order) {
   paymentLock.current = true;
   setPaying(true);
   try {
+    if (paymentMethod === 'VNPAY_QR' || order.payments?.some(payment => payment.method === 'VNPAY_QR')) {
+      await openVnpay(order.id);
+      return;
+    }
     const attempt = paymentAttempts.current.get(order.id) ?? {
       id: order.id, method: paymentMethod, key: createPaymentKey(), simulate: 'success' as const,
     };
     await payOrder(attempt);
   } catch (e: any) {
-    toast(e.message);
+    if (!handleSessionError(e)) toast(e.message);
   } finally {
     paymentLock.current = false;
     setPaying(false);
@@ -259,7 +371,7 @@ async function cancelOrder(order: Order) {
     await trackOrder(order.id);
     void loadMenu();
   } catch (error) {
-    toast((error as Error).message);
+    if (!handleSessionError(error)) toast((error as Error).message);
   } finally {
     paymentLock.current = false;
     setPaying(false);
@@ -399,14 +511,13 @@ setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button classNa
 </label>)}<button className="primary full" disabled={!size || !canAdd(selection, size, tops)} onClick={add}>Thêm vào giỏ · {money((size?.priceCents||0)+tops.reduce((a,t)=>a+t.priceCents,0))}</button>
 </div>
 </div>}
-{((cartOpen&&!checkoutOpen)||auth)&&<div className="overlay" onClick={()=>{setCartOpen(false);
-setAuth(null)}}>
+{((cartOpen&&!checkoutOpen)||auth)&&<div className="overlay" onClick={closeCartOrAuth}>
 <div className="modal side-modal" onClick={e=>e.stopPropagation()}>
-<button className="close" onClick={()=>{setCartOpen(false);
-setAuth(null)}}>×</button>{auth?<>
+<button className="close" onClick={closeCartOrAuth}>×</button>{auth?<>
 <div className="eyebrow">
 <span/> BREWLITE MEMBERS</div>
 <h2>{auth==='login'?'Chào bạn trở lại.':'Bắt đầu điều thật ngon.'}</h2>
+{auth === 'login' && sessionExpired && <p role="alert" className="error">Phiên đăng nhập đã hết hạn hoặc không còn hợp lệ. Vui lòng đăng nhập lại để tiếp tục.</p>}
 <form onSubmit={authSubmit}>{auth==='register'&&<label>Họ tên<input name="name" required/>
 </label>}<label>Email<input name="email" type="email" required/>
 </label>
@@ -437,21 +548,48 @@ setAuth(null)}}>×</button>{auth?<>
 <button disabled={!cart.length || paying} className="primary full" onClick={openCheckout}>Thanh toán · {money(total)} →</button>
 </>}</div>
 </div>}
-{checkoutOpen&&<div className="overlay">
+{checkoutOpen && !auth && <div className="overlay">
 <section className="modal side-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
 <button className="text-button" disabled={paying} onClick={() => setCheckoutOpen(false)}>← Về giỏ hàng</button>
 <h2 id="checkout-title">Thanh toán</h2>
 <div className="cart-total"><span>Tạm tính trước ưu đãi</span><b>{money(total)}</b></div>
 <fieldset className="payment-options" disabled={paying}>
 <label>Mã ưu đãi <input value={promotionCode} onChange={e => setPromotionCode(e.target.value)} /></label>
-<label>Phương thức <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as PaymentMethod)}>
+<label>Phương thức <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as CheckoutMethod)}>
 <option value="MOCK_WALLET">Ví mô phỏng</option>
 <option value="MOCK_CARD">Thẻ mô phỏng</option>
+<option value="VNPAY_QR">VNPAY QR (Sandbox)</option>
 </select></label>
-<label><input type="checkbox" checked={simulateFail} onChange={e=>setSimulateFail(e.target.checked)}/> Mô phỏng thất bại</label>
+{paymentMethod === 'VNPAY_QR'
+  ? <p>BrewLite sẽ hiện mã QR để bạn mở cổng thử nghiệm VNPAY trên điện thoại.</p>
+  : <label><input type="checkbox" checked={simulateFail} onChange={e=>setSimulateFail(e.target.checked)}/> Mô phỏng thất bại</label>}
 </fieldset>
 {checkoutError&&<p role="alert" className="error">{checkoutError}</p>}
 <button disabled={paying} className="primary full" onClick={checkout}>{paying ? 'Đang xử lý…' : 'Xác nhận thanh toán'}</button>
+</section>
+</div>}
+{(vnpayOrderId || vnpayError) && !auth && <div className="overlay">
+<section className="modal side-modal" role="dialog" aria-modal="true" aria-labelledby="vnpay-title">
+<h2 id="vnpay-title">Thanh toán VNPAY</h2>
+{vnpayResult && <p>Mã đơn <strong>{vnpayResult.orderNumber}</strong></p>}
+{user && vnpayPayment && !vnpayExpired && (!vnpayResult || vnpayResult.status === 'PENDING') && <>
+  <p>Quét bằng camera điện thoại để mở trang thanh toán VNPAY Sandbox.</p>
+  <Image src={vnpayPayment.qrCode} alt="Mã QR mở trang thanh toán VNPAY" width={320} height={320}
+    unoptimized style={{ display: 'block', width: 'min(320px, 100%)', height: 'auto', margin: '16px auto' }} />
+  <a className="text-button" href={vnpayPayment.paymentUrl} target="_blank" rel="noopener noreferrer">Mở trang VNPAY</a>
+</>}
+{vnpayOrderId && (!user ? <p>Đăng nhập để xem kết quả thanh toán trên thiết bị này.</p>
+  : <p role="status">{vnpayResult?.status === 'CANCELLED' ? 'Đơn đã hủy.'
+    : vnpayResult?.payments?.some(payment => payment.method === 'VNPAY_QR' && payment.status === 'SUCCEEDED')
+      ? 'Thanh toán thành công.'
+      : vnpayResult?.status === 'PAYMENT_FAILED' ? 'Thanh toán thất bại. Bạn có thể thử lại trong Đơn hàng.'
+        : vnpayExpired ? 'Mã QR đã hết hạn. Đang chờ VNPAY xác nhận kết quả.'
+          : 'Đang chờ backend xác nhận thanh toán…'}</p>)}
+{vnpayError && <p role="alert" className="error">{vnpayError}</p>}
+{user
+  ? <button className="primary full" onClick={() => { closeVnpayResult(); void loadOrders(); }}>Xem lịch sử đơn hàng</button>
+  : vnpayOrderId && <button className="primary full" onClick={() => setAuth('login')}>Đăng nhập</button>}
+<button className="text-button switch" onClick={closeVnpayResult}>Tiếp tục xem menu</button>
 </section>
 </div>}
 {confirmation&&<div className="overlay">
@@ -493,7 +631,7 @@ setAuth(null)}}>×</button>{auth?<>
 {['PENDING', 'PAYMENT_FAILED'].includes(o.status) &&
   <div>
     <button disabled={paying} onClick={() => retryPayment(o)}>Thử thanh toán lại</button>
-    <button disabled={paying} onClick={() => cancelOrder(o)}>Hủy đơn</button>
+    <button disabled={paying || o.payments?.some(payment => payment.method === 'VNPAY_QR' && payment.status === 'PENDING')} onClick={() => cancelOrder(o)}>Hủy đơn</button>
   </div>}
 </div>
 <strong>{money(o.totalCents)}</strong>
