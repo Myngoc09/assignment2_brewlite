@@ -3,12 +3,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { DatabaseModule } from './database.module';
-
+//Chữ ký được tạo bằng khóa bí mật
 const jwtSecret = process.env.JWT_SECRET;
 if (process.env.NODE_ENV === 'production' && (!jwtSecret || jwtSecret.length < 32)) {
   throw new Error('Set JWT_SECRET to at least 32 characters for production');
 }
-
+//Thời gian hết hạn của token
 @Module({
   imports: [
     DatabaseModule,

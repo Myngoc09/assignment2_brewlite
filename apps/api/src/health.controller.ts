@@ -3,7 +3,7 @@ import { PrismaService } from './prisma.service';
 @Controller('health')
 export class HealthController {
   constructor(private db: PrismaService) {}
-
+//Kiểm tra API hoạt động bình thường
   @Get()
   async check() {
     await this.db.$queryRaw`SELECT 1`;
