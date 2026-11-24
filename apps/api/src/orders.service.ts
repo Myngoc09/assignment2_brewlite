@@ -251,52 +251,189 @@ export class OrdersService {
     return order;
   }
   // Xử lý trạng thái đơn hàng, chỉ cho phép nhân viên thay đổi trạng thái trừ khi là hủy đơn
-  async status(userId: string, staff: boolean, id: string, status: StatusDto['status']) {
-    if (!staff && status !== 'CANCELLED') {
-      throw new ForbiddenException('Không có quyền thay đổi trạng thái đơn hàng này');
-    }
-    const owner = staff ? {} : { userId };
-    const order = await this.db.order.findFirst({ where: { id, ...owner }, select: { id: true } });
-    if (!order) {
-      throw new NotFoundException('Không tìm thấy đơn hàng');
-    }
+  
+    async status(
+      userId: string,
+      staff: boolean,
+      id: string,
+      status: StatusDto['status']
+    ) {
+      // 1. Kiểm tra quyền
+      if (staff === false && status !== 'CANCELLED') {
+        throw new ForbiddenException(
+          'Không có quyền thay đổi trạng thái đơn hàng này'
+        );
+      }
 
-    try {
-      if (status === 'CANCELLED') {
-        return await this.db.$transaction(async (tx) => {
-          await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} FOR UPDATE`;
-          const pendingQr = await tx.payment.findFirst({
-            where: { orderId: id, method: 'VNPAY_QR', status: 'PENDING' }, select: { id: true },
-          });
-          if (pendingQr) throw new ConflictException('Đơn đang chờ xác nhận từ VNPAY.');
-          const cancelled = await tx.order.update({
-            where: { id, ...owner, status: { in: staff ? statusTransitions.CANCELLED : unpaidStatuses } },
-            data: { status, statusHistory: { create: { status, changedById: userId } } },
-            include: { items: true },
-          });
-          const productStockItems = cancelled.items.filter(item => item.usesProductStock);
-          for (const item of productStockItems.sort((a, b) => a.productId.localeCompare(b.productId))) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { inventory: { increment: item.quantity } },
-            });
-          }
-          await this.inventory.release(tx, id, userId);
-          return cancelled;
+      // 2. Kiểm tra đơn hàng
+      let order;
+
+      if (staff === true) {
+        order = await this.db.order.findFirst({
+          where: { id: id },
+          select: { id: true }
+        });
+      } else {
+        order = await this.db.order.findFirst({
+          where: {
+            id: id,
+            userId: userId
+          },
+          select: { id: true }
         });
       }
-      return await this.db.order.update({
-        where: { id, status: { in: statusTransitions[status] } },
-        data: {
-          status,
-          statusHistory: { create: { status, changedById: userId } },
-        },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new ConflictException('Không thể thay đổi trạng thái đơn hàng, vui lòng thử lại');
+
+      if (!order) {
+        throw new NotFoundException('Không tìm thấy đơn hàng');
       }
-      throw error;
+
+      try {
+        // 3. Xử lý hủy đơn
+        if (status === 'CANCELLED') {
+          return await this.db.$transaction(async (tx) => {
+
+            // Khóa dòng đơn hàng
+            await tx.$queryRaw`
+              SELECT id FROM "Order"
+              WHERE id = ${id}
+              FOR UPDATE
+            `;
+
+            // Kiểm tra thanh toán VNPAY
+            const pendingQr = await tx.payment.findFirst({
+              where: {
+                orderId: id,
+                method: 'VNPAY_QR',
+                status: 'PENDING'
+              },
+              select: { id: true }
+            });
+
+            if (pendingQr) {
+              throw new ConflictException(
+                'Đơn đang chờ xác nhận từ VNPAY.'
+              );
+            }
+
+            // Xác định các trạng thái được phép hủy
+            let allowedStatuses;
+
+            if (staff === true) {
+              allowedStatuses = statusTransitions.CANCELLED;
+            } else {
+              allowedStatuses = unpaidStatuses;
+            }
+
+            // Cập nhật và ghi lịch sử hủy đơn
+            let cancelled;
+
+            if (staff === true) {
+              cancelled = await tx.order.update({
+                where: {
+                  id: id,
+                  status: {
+                    in: allowedStatuses
+                  }
+                },
+                data: {
+                  status: status,
+                  statusHistory: {
+                    create: {
+                      status: status,
+                      changedById: userId
+                    }
+                  }
+                },
+                include: { items: true }
+              });
+            } else {
+              cancelled = await tx.order.update({
+                where: {
+                  id: id,
+                  userId: userId,
+                  status: {
+                    in: allowedStatuses
+                  }
+                },
+                data: {
+                  status: status,
+                  statusHistory: {
+                    create: {
+                      status: status,
+                      changedById: userId
+                    }
+                  }
+                },
+                include: { items: true }
+              });
+            }
+
+            // Lọc sản phẩm sử dụng tồn kho sản phẩm
+            const productStockItems = cancelled.items.filter(
+              item => item.usesProductStock
+            );
+
+            // Sắp xếp sản phẩm theo ID để cập nhật kho cùng thứ tự
+            productStockItems.sort((a, b) =>
+              a.productId.localeCompare(b.productId)
+            );
+
+            // Hoàn lại tồn kho sản phẩm
+            for (const item of productStockItems) {
+              await tx.product.update({
+                where: {
+                  id: item.productId
+                },
+                data: {
+                  inventory: {
+                    increment: item.quantity
+                  }
+                }
+              });
+            }
+
+            // Giải phóng nguyên liệu đã giữ
+            await this.inventory.release(tx, id, userId);
+
+            return cancelled;
+          });
+        }
+
+        // 4. Xử lý chuyển trạng thái thông thường
+        const allowedStatuses = statusTransitions[status];
+
+        return await this.db.order.update({
+          where: {
+            id: id,
+            status: {
+              in: allowedStatuses
+            }
+          },
+          data: {
+            status: status,
+            statusHistory: {
+              create: {
+                status: status,
+                changedById: userId
+              }
+            }
+          }
+        });
+
+      } catch (error) {
+
+        // 5. Xử lý lỗi Prisma
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2025'
+        ) {
+          throw new ConflictException(
+            'Không thể thay đổi trạng thái đơn hàng, vui lòng thử lại'
+          );
+        }
+
+        throw error;
+      }
     }
-  }
+
 }
