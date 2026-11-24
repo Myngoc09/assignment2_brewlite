@@ -57,13 +57,14 @@ export class PaymentRequestDto extends PayDto {
   orderId!: string;
 }
 
+//Định nghĩa các trạng thái hợp lệ của đơn hàng và các trạng thái mà chúng có thể chuyển sang
 export const statusTransitions = {
   PREPARING: [OrderStatus.PAID],
   READY: [OrderStatus.PREPARING],
   COMPLETED: [OrderStatus.READY],
   CANCELLED: [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED, OrderStatus.PAID],
 };
-
+//Định nghĩa lớp DTO cho trạng thái đơn hàng, chỉ cho phép các trạng thái hợp lệ được sử dụng
 export class StatusDto {
   @IsIn(Object.keys(statusTransitions))
   status!: keyof typeof statusTransitions;

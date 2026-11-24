@@ -250,16 +250,15 @@ export class OrdersService {
 
     return order;
   }
-
+  // Xử lý trạng thái đơn hàng, chỉ cho phép nhân viên thay đổi trạng thái trừ khi là hủy đơn
   async status(userId: string, staff: boolean, id: string, status: StatusDto['status']) {
     if (!staff && status !== 'CANCELLED') {
-      throw new ForbiddenException('Staff role required');
+      throw new ForbiddenException('Không có quyền thay đổi trạng thái đơn hàng này');
     }
-
     const owner = staff ? {} : { userId };
     const order = await this.db.order.findFirst({ where: { id, ...owner }, select: { id: true } });
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException('Không tìm thấy đơn hàng');
     }
 
     try {
@@ -295,7 +294,7 @@ export class OrdersService {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new ConflictException('Order cannot move to that status');
+        throw new ConflictException('Không thể thay đổi trạng thái đơn hàng, vui lòng thử lại');
       }
       throw error;
     }

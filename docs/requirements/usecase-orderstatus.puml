@@ -28,6 +28,7 @@ rectangle "Phân hệ Quản lý trạng thái đơn hàng (BrewLite)" {
 
 Staff --> UC_Progress
 Staff --> UC_CancelPaid
+Staff --> UC_CancelUnpaid
 Customer --> UC_CancelUnpaid
 
 UC_Prepare --|> UC_Progress
