@@ -158,6 +158,7 @@ useEffect(() => {
   };
 }, [vnpayOrderId, user, loadMenu, handleSessionError]);
 const categories=['Tất cả',...Array.from(new Set(products.map(x=>x.category)))],visible=useMemo(()=>products.filter(x=>(category==='Tất cả'||x.category===category)&&x.name.toLowerCase().includes(search.toLowerCase())),[products,category,search]),total=cart.reduce((n,x)=>n+(x.size.priceCents+x.toppings.reduce((a,t)=>a+t.priceCents,0))*x.quantity,0);
+// open(): mở chi tiết sản phẩm khi khách bấm vào thẻ món ở menu (UC-02, đầu vào của "thêm vào giỏ").
 async function open(p: P) {
   try {
     const product = await api<P>(`/products/${p.id}`);
@@ -169,6 +170,7 @@ async function open(p: P) {
     toast(e.message);
   }
 }
+// canAdd(): kiểm tra thêm một ly nữa có còn trong số lượng còn lại hay không (true = được thêm, false = đã chạm trần).
 function canAdd(product: P, option: S, toppings: T[]) {
   const menuItem = selection?.id === product.id ? selection : products.find(item => item.id === product.id) ?? product;
   const currentSize = menuItem.sizes.find(size => size.id === option.id) ?? option;
@@ -186,6 +188,7 @@ function canAdd(product: P, option: S, toppings: T[]) {
     return inCart < current.availableQuantity;
   });
 }
+// add(): thêm món đang chọn vào giỏ hàng. Chỉ chạy ở trình duyệt, không gọi API, không ghi database.
 function add(){if(!selection||!size)return;
 if (!canAdd(selection, size, tops)) {
   toast('Số lượng trong giỏ đã bằng số lượng còn lại.');
