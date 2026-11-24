@@ -10,6 +10,7 @@ enum Role {
   STAFF
   MANAGER
 }
+
 enum OrderStatus {
   PENDING
   PAID

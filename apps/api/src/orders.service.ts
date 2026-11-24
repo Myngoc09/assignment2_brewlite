@@ -8,6 +8,7 @@ import { InventoryService } from './inventory.service';
 
 const unpaidStatuses: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED];
 
+
 @Injectable()
 export class OrdersService {
   constructor(private readonly db: PrismaService, private readonly inventory: InventoryService) {}

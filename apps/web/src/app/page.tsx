@@ -507,7 +507,7 @@ setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button classNa
 </button>)}</div>
 <h4>Thêm topping</h4>{selection.toppings.map(t=>
 <label className="topping" key={t.id}>
-<input type="checkbox" checked={tops.some(x=>x.id===t.id)} disabled={t.availableQuantity === 0} onChange={e=>setTops(v=>e.target.checked?[...v,t]:v.filter(x=>x.id!==t.id))}/>{t.name}<span>{t.availableQuantity === 0 ? 'Hết hàng' : '+' + money(t.priceCents)}</span>
+<input type="checkbox" checked={tops.some(x=>x.id===t.id)} disabled={t.availableQuantit"y === 0} onChange={e=>setTops(v=>e.target.checked?[...v,t]:v.filter(x=>x.id!==t.id))}/>{t.name}<span>{t.availableQuantity === 0 ? 'Hết hàng' : '+' + money(t.priceCents)}</span>
 </label>)}<button className="primary full" disabled={!size || !canAdd(selection, size, tops)} onClick={add}>Thêm vào giỏ · {money((size?.priceCents||0)+tops.reduce((a,t)=>a+t.priceCents,0))}</button>
 </div>
 </div>}
@@ -521,6 +521,7 @@ setUser(null)}}>Hi, {user.name.split(' ')[0]} · Thoát</button>:<button classNa
 <form onSubmit={authSubmit}>{auth==='register'&&<label>Họ tên<input name="name" required/>
 </label>}<label>Email<input name="email" type="email" required/>
 </label>
+
 <label>Mật khẩu<input name="password" type="password" minLength={8} required/>
 </label>
 <button className="primary full">{auth==='login'?'Đăng nhập':'Tạo tài khoản'}</button>
