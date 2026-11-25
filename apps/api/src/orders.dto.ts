@@ -58,13 +58,26 @@ export class PaymentRequestDto extends PayDto {
 }
 
 export const statusTransitions = {
+  // Đơn đã thanh toán mới được chuyển sang đang chuẩn bị
   PREPARING: [OrderStatus.PAID],
+
+  // Đơn đang chuẩn bị mới được chuyển sang sẵn sàng
   READY: [OrderStatus.PREPARING],
+
+  // Đơn sẵn sàng mới được chuyển sang hoàn thành
   COMPLETED: [OrderStatus.READY],
-  CANCELLED: [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED, OrderStatus.PAID],
+
+  // Các trạng thái có thể chuyển sang đã hủy
+  CANCELLED: [
+    OrderStatus.PENDING,
+    OrderStatus.PAYMENT_FAILED,
+    OrderStatus.PAID,
+  ],
 };
 
 export class StatusDto {
+  // Chỉ chấp nhận những trạng thái được định nghĩa bên trên
   @IsIn(Object.keys(statusTransitions))
   status!: keyof typeof statusTransitions;
 }
+

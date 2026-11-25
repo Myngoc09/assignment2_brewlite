@@ -47,13 +47,34 @@ export class OrdersController {
     return this.orders.one(user.sub, id);
   }
 
+  
+  // API thay đổi trạng thái đơn hàng
   @Patch('orders/:id/status')
   status(
-    @Req() { user }: AuthenticatedRequest,
+    @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() { status }: StatusDto,
+    @Body() body: StatusDto,
   ) {
-    const staff = user.role === 'STAFF' || user.role === 'MANAGER';
-    return this.orders.status(user.sub, staff, id, status);
+    // Lấy thông tin người dùng đang đăng nhập
+    const user = request.user;
+
+    // Lấy trạng thái mới mà người dùng muốn chuyển đến
+    const newStatus = body.status;
+
+    // Kiểm tra người dùng có phải nhân viên hoặc quản lý không
+    let isStaff = false;
+
+    if (user.role === 'STAFF' || user.role === 'MANAGER') {
+      isStaff = true;
+    }
+
+    // Gọi Service để kiểm tra quyền và xử lý trạng thái đơn hàng
+    return this.orders.status(
+      user.sub,
+      isStaff,
+      id,
+      newStatus,
+    );
   }
+
 }
