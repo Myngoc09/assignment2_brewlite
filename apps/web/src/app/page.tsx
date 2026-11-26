@@ -82,6 +82,7 @@ const handleSessionError = useCallback((error: unknown) => {
   setAuth('login');
   return true;
 }, []);
+
 const loadMenu = useCallback(async (signal?: AbortSignal) => {
   try {
     const menu = await api<P[]>('/products', { signal });

@@ -15,6 +15,7 @@ function withAvailability(product: Prisma.ProductGetPayload<{ include: typeof op
     availableQuantity: availableServings(recipe, product.inventory),
     usesProductStock: recipe.length === 0,
   }));
+  
   const toppings = product.toppings.map(({ recipe, ...topping }) => ({
     ...topping,
     availableQuantity: recipe.length ? availableServings(recipe, 0) : null,
