@@ -10,7 +10,7 @@ interface AuthClaims {
 export interface AuthenticatedRequest {
   user: AuthClaims;
 }
-
+//Token để thực hiện các chức năng đặt hàng, thanh toán,...
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly jwt: JwtService) {}
