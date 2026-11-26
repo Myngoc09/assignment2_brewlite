@@ -1,7 +1,7 @@
 import { Controller, Get, Ip, Param, Post, Query, Redirect, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard, AuthenticatedRequest } from './auth.guard';
 import { VnpayService } from './vnpay.service';
-
+   
 @Controller()
 export class VnpayController {
   constructor(private readonly vnpay: VnpayService) {}

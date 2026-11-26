@@ -4,7 +4,7 @@ import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from './prisma.service';
-
+//Form đăng kí, đăng nhập 
 class AuthDto {
   @IsEmail()
   email!: string;
@@ -17,7 +17,7 @@ class AuthDto {
   @IsString()
   name?: string;
 }
-
+//Kiểm tra dữ liệu đúng định dạng
 @Controller('auth')
 export class AuthController {
   constructor(private readonly db: PrismaService, private readonly jwt: JwtService) {}
@@ -54,7 +54,7 @@ export class AuthController {
     }
     return this.session(user);
   }
-
+//Trả về thông tin người dùng
   private session({ passwordHash, ...user }: User) {
     return {
       accessToken: this.jwt.sign({ sub: user.id, email: user.email, role: user.role }),
